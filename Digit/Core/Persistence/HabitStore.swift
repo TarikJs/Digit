@@ -7,15 +7,15 @@
 
 import Foundation
 
-final class HabitStore {
+public final class HabitStore {
     private let storageKey = "habits_data"
     private let userDefaults: UserDefaults
     
-    init(userDefaults: UserDefaults = .standard) {
+    public init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
     }
     
-    func loadHabits() -> [Habit] {
+    public func loadHabits() -> [Habit] {
         guard let data = userDefaults.data(forKey: storageKey) else { return [] }
         do {
             let decoder = JSONDecoder()
@@ -27,7 +27,7 @@ final class HabitStore {
         }
     }
     
-    func saveHabits(_ habits: [Habit]) {
+    public func saveHabits(_ habits: [Habit]) {
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601

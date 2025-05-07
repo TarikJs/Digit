@@ -34,7 +34,7 @@ struct AppCoordinator: View {
             if appViewModel.showOnboarding {
                 OnboardingView(viewModel: OnboardingViewModel(onComplete: appViewModel.completeOnboarding))
             } else {
-                MainTabCoordinator()
+                MainTabView()
             }
         }
         .environmentObject(appViewModel)

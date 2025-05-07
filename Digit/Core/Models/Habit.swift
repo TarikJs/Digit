@@ -23,6 +23,9 @@ public struct Habit: Identifiable, Codable, Equatable, Hashable {
     public var customDays: [Int]? // 1 = Sunday, 7 = Saturday (if custom)
     public var reminderTime: DateComponents?
     public var completions: [Date] // Dates when the habit was completed
+    public var dailyGoal: Int // Number of times to complete per day
+    public var currentProgress: Int // Current progress for today
+    public var lastProgressDate: Date? // Date when progress was last updated
     
     public init(id: UUID = UUID(),
          name: String,
@@ -31,7 +34,10 @@ public struct Habit: Identifiable, Codable, Equatable, Hashable {
          frequency: Frequency = .daily,
          customDays: [Int]? = nil,
          reminderTime: DateComponents? = nil,
-         completions: [Date] = []) {
+         completions: [Date] = [],
+         dailyGoal: Int = 1,
+         currentProgress: Int = 0,
+         lastProgressDate: Date? = nil) {
         self.id = id
         self.name = name
         self.color = ColorCodable(color)
@@ -40,6 +46,9 @@ public struct Habit: Identifiable, Codable, Equatable, Hashable {
         self.customDays = customDays
         self.reminderTime = reminderTime
         self.completions = completions
+        self.dailyGoal = dailyGoal
+        self.currentProgress = currentProgress
+        self.lastProgressDate = lastProgressDate
     }
     
     public func hash(into hasher: inout Hasher) {
@@ -52,6 +61,46 @@ public struct Habit: Identifiable, Codable, Equatable, Hashable {
         hasher.combine(reminderTime?.hour)
         hasher.combine(reminderTime?.minute)
         hasher.combine(completions)
+        hasher.combine(dailyGoal)
+        hasher.combine(currentProgress)
+        hasher.combine(lastProgressDate)
+    }
+    
+    // MARK: - Helper Methods
+    
+    public var isCompletedToday: Bool {
+        currentProgress >= dailyGoal
+    }
+    
+    public mutating func resetProgressIfNeeded() {
+        let calendar = Calendar.current
+        if let lastDate = lastProgressDate,
+           !calendar.isDate(lastDate, inSameDayAs: Date()) {
+            currentProgress = 0
+            lastProgressDate = Date()
+        } else if lastProgressDate == nil {
+            lastProgressDate = Date()
+        }
+    }
+    
+    public mutating func incrementProgress() {
+        resetProgressIfNeeded()
+        currentProgress += 1
+        lastProgressDate = Date()
+        
+        if isCompletedToday && !completions.contains(where: { Calendar.current.isDate($0, inSameDayAs: Date()) }) {
+            completions.append(Date())
+        }
+    }
+    
+    public mutating func decrementProgress() {
+        resetProgressIfNeeded()
+        currentProgress = max(0, currentProgress - 1)
+        lastProgressDate = Date()
+        
+        if !isCompletedToday {
+            completions.removeAll(where: { Calendar.current.isDate($0, inSameDayAs: Date()) })
+        }
     }
 }
 

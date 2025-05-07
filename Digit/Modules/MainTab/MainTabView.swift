@@ -1,11 +1,12 @@
 import SwiftUI
 
-struct MainTabCoordinator: View {
+struct MainTabView: View {
     @State private var selectedTab: MainTab = .home
-
+    
     var body: some View {
         ZStack(alignment: .bottom) {
-            Group {
+            // Content
+            VStack {
                 switch selectedTab {
                 case .home:
                     HomeView()
@@ -17,34 +18,14 @@ struct MainTabCoordinator: View {
                     SettingsView()
                 }
             }
+            
+            // Custom Tab Bar
             CustomTabBar(selectedTab: $selectedTab)
         }
         .ignoresSafeArea(.keyboard)
     }
 }
 
-// MARK: - Placeholder Views for Other Tabs
-
-struct StatsView: View {
-    var body: some View {
-        VStack {
-            Text("Stats")
-                .font(.title)
-                .foregroundColor(.brandBlue)
-            Spacer()
-        }
-        .padding()
-    }
-}
-
-struct AchievementsView: View {
-    var body: some View {
-        VStack {
-            Text("Achievements")
-                .font(.title)
-                .foregroundColor(.brandBlue)
-            Spacer()
-        }
-        .padding()
-    }
+#Preview {
+    MainTabView()
 } 

@@ -1,0 +1,62 @@
+/* Onboarding */
+"onboarding_title" = "Welcome to Habit Builder";
+"onboarding_description" = "Build positive habits, track your progress, and stay motivated. Your data stays private on your device.";
+"onboarding_reminders_title" = "Stay on Track with Reminders";
+"onboarding_reminders_desc" = "Enable notifications to get timely reminders for your habits. You can customize reminders for each habit later.";
+"next_button" = "Next";
+"get_started_button" = "Get Started";
+"get_started_hint" = "Completes onboarding and starts using the app.";
+"next_hint" = "Go to next onboarding page.";
+
+"dashboard_title" = "My Habits";
+"add_habit_button" = "Add Habit";
+"habit_completed_label" = "Habit completed today";
+"mark_habit_done_label" = "Mark habit as done";
+"add_habit_title" = "Add Habit";
+"habit_name_label" = "Habit Name";
+"habit_name_placeholder" = "e.g. Morning Run";
+"habit_icon_label" = "Icon";
+"habit_color_label" = "Color";
+"habit_frequency_label" = "Frequency";
+"habit_frequency_picker" = "Frequency";
+"cancel_button" = "Cancel";
+"save_button" = "Save";
+
+"habit_detail_title" = "Habit Detail";
+"completion_calendar_label" = "Completion Calendar";
+"stats_label" = "Statistics";
+"current_streak_label" = "Current Streak";
+"longest_streak_label" = "Longest Streak";
+"completion_rate_label" = "Completion Rate";
+"calendar_day_accessibility_label" = "Day %d";
+"calendar_day_completed_hint" = "Completed";
+"calendar_day_not_completed_hint" = "Not completed";
+
+"reminder_label" = "Reminder";
+"enable_reminder_toggle" = "Enable daily reminder";
+"reminder_time_picker" = "Reminder Time";
+"reminder_title_format" = "Time to do: %@";
+"reminder_body" = "Don't forget to complete your habit!";
+
+"edit_habit_button" = "Edit Habit";
+"delete_habit_button" = "Delete Habit";
+"delete_habit_confirm_title" = "Delete Habit?";
+"delete_habit_confirm_message" = "Are you sure you want to delete this habit?";
+"delete_button" = "Delete";
+
+"settings_title" = "Settings";
+"notifications_section_label" = "Notifications";
+"notification_permission_status_label" = "Permission Status";
+"open_settings_button" = "Open Settings";
+"app_info_section_label" = "App Info";
+"version_label" = "Version";
+"privacy_policy_label" = "Privacy Policy";
+"permission_authorized" = "Authorized";
+"permission_denied" = "Denied";
+"permission_not_determined" = "Not Determined";
+"permission_provisional" = "Provisional";
+"permission_ephemeral" = "Ephemeral";
+
+"empty_state_title" = "No habits yet";
+"empty_state_message" = "Add your first habit to get started!";
+"add_habit_empty_hint" = "Add your first habit"; 

@@ -10,9 +10,22 @@
 		DCA803B62DCA76D100028F5D /* Digit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Digit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DCA804262DCA7D7B00028F5D /* Exceptions for "Digit" folder in "Digit" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DCA803B52DCA76D100028F5D /* Digit */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DCA803B82DCA76D100028F5D /* Digit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DCA804262DCA7D7B00028F5D /* Exceptions for "Digit" folder in "Digit" target */,
+			);
 			path = Digit;
 			sourceTree = "<group>";
 		};

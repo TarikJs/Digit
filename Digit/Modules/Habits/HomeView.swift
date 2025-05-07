@@ -365,12 +365,7 @@ struct HomeView: View {
     }
     
     // Replace habits with proper Habit model
-    @State private var habits = [
-        CoreHabit(name: "Wake up at 9:00", color: .accentLime, iconName: "bed.double", frequency: .daily),
-        CoreHabit(name: "Work out", color: .accentLime, iconName: "dumbbell.fill", frequency: .daily),
-        CoreHabit(name: "Meditation 30 min", color: .accentPurple, iconName: "leaf.fill", frequency: .daily, completions: [Date()]),
-        CoreHabit(name: "No cigarettes", color: .accentLime, iconName: "xmark.circle.fill", frequency: .daily, completions: [Date()])
-    ]
+    @State private var habits = [Habit]()
     
     // Add these date-related properties
     @State private var selectedDate = Date()
@@ -429,18 +424,24 @@ struct HomeView: View {
                             }
                             .frame(width: Layout.contentWidth)
                             
-                            // Habits Carousel Container
                             VStack {
-                                HabitCarouselView(
-                                    habitPages: habitPages,
-                                    currentPage: $currentPage,
-                                    safeHorizontalPadding: Layout.sectionContentPadding,
-                                    habitValues: $habitValues
-                                )
+                                if habits.isEmpty {
+                                    Spacer()
+                                    Text("No progress yet. Tap + to add a habit.")
+                                        .font(.headline)
+                                        .foregroundColor(.brandBlue)
+                                        .multilineTextAlignment(.center)
+                                    Spacer()
+                                } else {
+                                    HabitCarouselView(
+                                        habitPages: habitPages,
+                                        currentPage: $currentPage,
+                                        safeHorizontalPadding: Layout.sectionContentPadding,
+                                        habitValues: $habitValues
+                                    )
+                                }
                             }
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, Layout.sectionContentPadding / 2)
-                            .frame(width: Layout.adjustedContentWidth)
+                            .frame(width: Layout.adjustedContentWidth, height: 235)
                             .padding(UIConstants.borderWidth)
                             .frame(width: Layout.contentWidth)
                             .background(Color.white)
@@ -463,34 +464,45 @@ struct HomeView: View {
                             }
                             .frame(width: Layout.contentWidth)
                             
-                            // Tasks List Container
-                            ScrollView {
-                                VStack(spacing: StyleConstants.cardSpacing) {
-                                    ForEach($habits) { $habit in
-                                        CompletionCard(
-                                            icon: habit.iconName,
-                                            title: habit.name,
-                                            isCompleted: isCompletedToday(habit.completions),
-                                            color: habit.color.color,
-                                            onTap: {
-                                                withAnimation(.spring(response: 0.3)) {
-                                                    let today = Date()
-                                                    if isCompletedToday(habit.completions) {
-                                                        habit.completions.removeAll { completion in
-                                                            Calendar.current.isDate(completion, inSameDayAs: today)
+                            VStack {
+                                if habits.isEmpty {
+                                    Spacer()
+                                    Text("No daily tasks. Start by adding a habit.")
+                                        .font(.headline)
+                                        .foregroundColor(.brandBlue)
+                                        .multilineTextAlignment(.center)
+                                    Spacer()
+                                } else {
+                                    // Tasks List Container
+                                    ScrollView {
+                                        VStack(spacing: StyleConstants.cardSpacing) {
+                                            ForEach($habits) { $habit in
+                                                CompletionCard(
+                                                    icon: habit.iconName,
+                                                    title: habit.name,
+                                                    isCompleted: isCompletedToday(habit.completions),
+                                                    color: habit.color.color,
+                                                    onTap: {
+                                                        withAnimation(.spring(response: 0.3)) {
+                                                            let today = Date()
+                                                            if isCompletedToday(habit.completions) {
+                                                                habit.completions.removeAll { completion in
+                                                                    Calendar.current.isDate(completion, inSameDayAs: today)
+                                                                }
+                                                            } else {
+                                                                habit.completions.append(today)
+                                                            }
                                                         }
-                                                    } else {
-                                                        habit.completions.append(today)
                                                     }
-                                                }
+                                                )
                                             }
-                                        )
+                                        }
+                                        .padding(StyleConstants.completionListPadding)
                                     }
+                                    .frame(height: 220)
                                 }
-                                .padding(StyleConstants.completionListPadding)
                             }
-                            .frame(height: 220)
-                            .frame(width: Layout.adjustedContentWidth)
+                            .frame(width: Layout.adjustedContentWidth, height: 210)
                             .padding(UIConstants.borderWidth)
                             .frame(width: Layout.contentWidth)
                             .background(Color.white)
@@ -767,12 +779,7 @@ struct HomeDashboardContent: View {
     @State private var selectedDay = 0
     @State private var drinkWater = 8
     @State private var readBook = 15
-    @State private var habits = [
-        CoreHabit(name: "Wake up at 9:00", color: .accentLime, iconName: "bed.double", frequency: .daily),
-        CoreHabit(name: "Work out", color: .accentLime, iconName: "dumbbell.fill", frequency: .daily),
-        CoreHabit(name: "Meditation 30 min", color: .accentPurple, iconName: "leaf.fill", frequency: .daily, completions: [Date()]),
-        CoreHabit(name: "No cigarettes", color: .accentLime, iconName: "xmark.circle.fill", frequency: .daily, completions: [Date()])
-    ]
+    @State private var habits = [Habit]()
     let days = ["01\nmon", "02\ntue", "03\nwed", "04\nfri", "05\nfri", "06\nsat", "07\nsun"]
 
     var body: some View {

@@ -67,7 +67,7 @@
 			buildPhases = (
 				DCA803B22DCA76D100028F5D /* Sources */,
 				DCA803B32DCA76D100028F5D /* Frameworks */,
-				DCA803B42DCA76D100028F5D /* Resources */,
+				DCA8046D2DCB29E700028F5D /* Resources */,
 			);
 			buildRules = (
 			);
@@ -118,7 +118,7 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		DCA803B42DCA76D100028F5D /* Resources */ = {
+		DCA8046D2DCB29E700028F5D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (

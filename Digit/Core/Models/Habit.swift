@@ -1,147 +1,88 @@
-//
-//  Habit.swift
-//  Digit
-//
-//  Model representing a user habit for the Habit Builder App.
-//
-
 import Foundation
-import SwiftUI
 
-public struct Habit: Identifiable, Codable, Equatable, Hashable {
-    public enum Frequency: String, Codable, CaseIterable, Equatable {
-        case daily
-        case weekly
-        case custom // For specific days of the week
-    }
+struct Habit: Identifiable, Codable, Equatable {
+    let id: String
+    let userId: String
+    let title: String
+    let createdAt: Date
+    var completedDates: [Date]
+    var preferredTime: PreferredHabitTime
+    var currentStreak: Int
+    var bestStreak: Int
+    var lastCompletedDate: Date?
     
-    public let id: UUID
-    public var name: String
-    public var color: ColorCodable
-    public var iconName: String
-    public var frequency: Frequency
-    public var customDays: [Int]? // 1 = Sunday, 7 = Saturday (if custom)
-    public var reminderTime: DateComponents?
-    public var completions: [Date] // Dates when the habit was completed
-    public var dailyGoal: Int // Number of times to complete per day
-    public var currentProgress: Int // Current progress for today
-    public var lastProgressDate: Date? // Date when progress was last updated
-    
-    public init(id: UUID = UUID(),
-         name: String,
-         color: Color = .accentColor,
-         iconName: String = "star.fill",
-         frequency: Frequency = .daily,
-         customDays: [Int]? = nil,
-         reminderTime: DateComponents? = nil,
-         completions: [Date] = [],
-         dailyGoal: Int = 1,
-         currentProgress: Int = 0,
-         lastProgressDate: Date? = nil) {
+    init(
+        id: String = UUID().uuidString,
+        userId: String,
+        title: String,
+        preferredTime: PreferredHabitTime,
+        createdAt: Date = Date(),
+        completedDates: [Date] = [],
+        currentStreak: Int = 0,
+        bestStreak: Int = 0,
+        lastCompletedDate: Date? = nil
+    ) {
         self.id = id
-        self.name = name
-        self.color = ColorCodable(color)
-        self.iconName = iconName
-        self.frequency = frequency
-        self.customDays = customDays
-        self.reminderTime = reminderTime
-        self.completions = completions
-        self.dailyGoal = dailyGoal
-        self.currentProgress = currentProgress
-        self.lastProgressDate = lastProgressDate
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(name)
-        hasher.combine(color)
-        hasher.combine(iconName)
-        hasher.combine(frequency)
-        hasher.combine(customDays)
-        hasher.combine(reminderTime?.hour)
-        hasher.combine(reminderTime?.minute)
-        hasher.combine(completions)
-        hasher.combine(dailyGoal)
-        hasher.combine(currentProgress)
-        hasher.combine(lastProgressDate)
+        self.userId = userId
+        self.title = title
+        self.preferredTime = preferredTime
+        self.createdAt = createdAt
+        self.completedDates = completedDates
+        self.currentStreak = currentStreak
+        self.bestStreak = bestStreak
+        self.lastCompletedDate = lastCompletedDate
     }
     
     // MARK: - Helper Methods
     
-    public var isCompletedToday: Bool {
-        currentProgress >= dailyGoal
+    var isCompletedToday: Bool {
+        guard let lastCompleted = lastCompletedDate else { return false }
+        return Calendar.current.isDate(lastCompleted, inSameDayAs: Date())
     }
     
-    public mutating func resetProgressIfNeeded() {
+    mutating func markCompleted() {
+        let today = Date()
+        completedDates.append(today)
+        lastCompletedDate = today
+        
+        // Update streaks
+        if let lastCompleted = completedDates.sorted().dropLast().last {
+            let calendar = Calendar.current
+            let daysBetween = calendar.dateComponents([.day], from: lastCompleted, to: today).day ?? 0
+            
+            if daysBetween <= 1 {
+                currentStreak += 1
+                bestStreak = max(currentStreak, bestStreak)
+            } else {
+                currentStreak = 1
+            }
+        } else {
+            currentStreak = 1
+            bestStreak = 1
+        }
+    }
+    
+    mutating func markIncomplete() {
+        guard let lastCompleted = lastCompletedDate,
+              Calendar.current.isDate(lastCompleted, inSameDayAs: Date()) else { return }
+        
+        completedDates.removeAll { Calendar.current.isDate($0, inSameDayAs: Date()) }
+        
+        // Update last completed date to previous completion
+        lastCompletedDate = completedDates.sorted().last
+        
+        // Update current streak
+        if currentStreak > 0 {
+            currentStreak -= 1
+        }
+    }
+    
+    var completionRate: Double {
+        guard !completedDates.isEmpty else { return 0 }
         let calendar = Calendar.current
-        if let lastDate = lastProgressDate,
-           !calendar.isDate(lastDate, inSameDayAs: Date()) {
-            currentProgress = 0
-            lastProgressDate = Date()
-        } else if lastProgressDate == nil {
-            lastProgressDate = Date()
-        }
-    }
-    
-    public mutating func incrementProgress() {
-        resetProgressIfNeeded()
-        currentProgress += 1
-        lastProgressDate = Date()
-        
-        if isCompletedToday && !completions.contains(where: { Calendar.current.isDate($0, inSameDayAs: Date()) }) {
-            completions.append(Date())
-        }
-    }
-    
-    public mutating func decrementProgress() {
-        resetProgressIfNeeded()
-        currentProgress = max(0, currentProgress - 1)
-        lastProgressDate = Date()
-        
-        if !isCompletedToday {
-            completions.removeAll(where: { Calendar.current.isDate($0, inSameDayAs: Date()) })
-        }
-    }
-}
-
-// MARK: - Codable Color Wrapper
-
-public struct ColorCodable: Codable, Equatable, Hashable {
-    public let color: Color
-    
-    public init(_ color: Color) {
-        self.color = color
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case red, green, blue, alpha
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        try container.encode(Double(red), forKey: .red)
-        try container.encode(Double(green), forKey: .green)
-        try container.encode(Double(blue), forKey: .blue)
-        try container.encode(Double(alpha), forKey: .alpha)
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let red = try container.decode(Double.self, forKey: .red)
-        let green = try container.decode(Double.self, forKey: .green)
-        let blue = try container.decode(Double.self, forKey: .blue)
-        let alpha = try container.decode(Double.self, forKey: .alpha)
-        self.color = Color(.sRGB, red: red, green: green, blue: blue, opacity: alpha)
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        hasher.combine(red)
-        hasher.combine(green)
-        hasher.combine(blue)
-        hasher.combine(alpha)
+        let start = calendar.startOfDay(for: createdAt)
+        let end = calendar.startOfDay(for: Date())
+        let totalDays = calendar.dateComponents([.day], from: start, to: end).day ?? 1
+        return Double(completedDates.count) / Double(max(1, totalDays))
     }
 } 

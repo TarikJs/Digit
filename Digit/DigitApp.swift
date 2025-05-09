@@ -7,37 +7,29 @@
 
 import SwiftUI
 
-// MARK: - AppViewModel
+// MARK: - AppCoordinator
 
-final class AppViewModel: ObservableObject {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
-    
+final class AppCoordinator: ObservableObject, SplashCoordinatorDelegate {
+    @Published var showSplash: Bool = true
     @Published var showOnboarding: Bool = false
-    
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
+    let splashCoordinator = SplashCoordinator()
+
     init() {
+        splashCoordinator.delegate = self
         showOnboarding = !hasCompletedOnboarding
     }
-    
+
+    func splashDidFinish() {
+        withAnimation {
+            showSplash = false
+        }
+    }
+
     func completeOnboarding() {
         hasCompletedOnboarding = true
         showOnboarding = false
-    }
-}
-
-// MARK: - AppCoordinator
-
-struct AppCoordinator: View {
-    @StateObject private var appViewModel = AppViewModel()
-
-    var body: some View {
-        Group {
-            if appViewModel.showOnboarding {
-                OnboardingView(viewModel: OnboardingViewModel(onComplete: appViewModel.completeOnboarding))
-            } else {
-                MainTabView()
-            }
-        }
-        .environmentObject(appViewModel)
     }
 }
 
@@ -45,9 +37,16 @@ struct AppCoordinator: View {
 
 @main
 struct DigitApp: App {
+    @StateObject private var coordinator = AuthCoordinator()
+    
     var body: some Scene {
         WindowGroup {
-            AppCoordinator()
+            coordinator.makeCurrentView()
+                .environmentObject(coordinator)
+                .onOpenURL { url in
+                    print("[DEBUG] Received deep link: \(url)")
+                    SupabaseManager.shared.client.auth.handle(url)
+                }
         }
     }
 }

@@ -6,26 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DCA804B82DCC55D500028F5D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DCA804B72DCC55D500028F5D /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		DCA803B62DCA76D100028F5D /* Digit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Digit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		DCA804262DCA7D7B00028F5D /* Exceptions for "Digit" folder in "Digit" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = DCA803B52DCA76D100028F5D /* Digit */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DCA803B82DCA76D100028F5D /* Digit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				DCA804262DCA7D7B00028F5D /* Exceptions for "Digit" folder in "Digit" target */,
-			);
 			path = Digit;
 			sourceTree = "<group>";
 		};
@@ -36,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DCA804B82DCC55D500028F5D /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,6 +38,7 @@
 			isa = PBXGroup;
 			children = (
 				DCA803B82DCA76D100028F5D /* Digit */,
+				DCA804B62DCC55D500028F5D /* Frameworks */,
 				DCA803B72DCA76D100028F5D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -56,6 +49,13 @@
 				DCA803B62DCA76D100028F5D /* Digit.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		DCA804B62DCC55D500028F5D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -78,6 +78,7 @@
 			);
 			name = Digit;
 			packageProductDependencies = (
+				DCA804B72DCC55D500028F5D /* Supabase */,
 			);
 			productName = Digit;
 			productReference = DCA803B62DCA76D100028F5D /* Digit.app */;
@@ -107,6 +108,9 @@
 			);
 			mainGroup = DCA803AD2DCA76D100028F5D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DCA803B72DCA76D100028F5D /* Products */;
 			projectDirPath = "";
@@ -264,6 +268,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Digit/Digit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWLJHVV8Y3;
@@ -292,6 +297,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Digit/Digit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWLJHVV8Y3;
@@ -337,6 +343,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DCA804B72DCC55D500028F5D /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = DCA803AE2DCA76D100028F5D /* Project object */;
 }

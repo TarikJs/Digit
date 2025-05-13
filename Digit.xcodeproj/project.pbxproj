@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DC00204C2DD3AEBB00F4C3D6 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = DC00204B2DD3AEBB00F4C3D6 /* ConfettiSwiftUI */; };
 		DCA804B82DCC55D500028F5D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DCA804B72DCC55D500028F5D /* Supabase */; };
 /* End PBXBuildFile section */
 
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC00204C2DD3AEBB00F4C3D6 /* ConfettiSwiftUI in Frameworks */,
 				DCA804B82DCC55D500028F5D /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -79,6 +81,7 @@
 			name = Digit;
 			packageProductDependencies = (
 				DCA804B72DCC55D500028F5D /* Supabase */,
+				DC00204B2DD3AEBB00F4C3D6 /* ConfettiSwiftUI */,
 			);
 			productName = Digit;
 			productReference = DCA803B62DCA76D100028F5D /* Digit.app */;
@@ -110,6 +113,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				DC00204A2DD3AEBB00F4C3D6 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DCA803B72DCA76D100028F5D /* Products */;
@@ -345,6 +349,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		DC00204A2DD3AEBB00F4C3D6 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/simibac/ConfettiSwiftUI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.3;
+			};
+		};
 		DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift.git";
@@ -356,6 +368,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		DC00204B2DD3AEBB00F4C3D6 /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DC00204A2DD3AEBB00F4C3D6 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
+			productName = ConfettiSwiftUI;
+		};
 		DCA804B72DCC55D500028F5D /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = DCA804B52DCBDF5200028F5D /* XCRemoteSwiftPackageReference "supabase-swift" */;

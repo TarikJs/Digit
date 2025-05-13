@@ -13,58 +13,31 @@ struct AuthProvidersView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Email TextField and Continue/Signup button
-            TextField("Email", text: $email)
-                .font(.system(size: 24))
-                .keyboardType(.emailAddress)
-                .autocapitalization(.none)
-                .padding()
-                .frame(height: 56)
-                .background(Color.white)
-                .foregroundStyle(Color.black)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.brand, lineWidth: 1.7)
-                )
-                .accessibilityLabel("Email")
-                .disabled(isLoading)
-            
-            Button(action: onEmailContinue) {
-                HStack {
-                    if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Text(isLogin ? "Continue" : "Sign up")
-                    }
-                }
-                .font(.system(size: 24))
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(isEmailValid && !isLoading ? Color.brand : Color.brand.opacity(0.5))
-                .foregroundStyle(Color.white)
-                .cornerRadius(12)
-            }
-            .disabled(!isEmailValid || isLoading)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isLogin)
-        }
-        .frame(width: 320)
-        
-        HStack {
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(Color.brand.opacity(0.2))
-            Text("or")
-                .font(.system(size: 24))
-                .foregroundStyle(Color(hex: "6B7280"))
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(Color.brand.opacity(0.2))
+            // Removed email TextField and Continue/Signup button
         }
         .frame(width: 320)
         
         VStack(spacing: 12) {
+            // Continue with Email Button
+            Button(action: onEmailContinue) {
+                HStack {
+                    Image(systemName: "envelope")
+                        .font(.system(size: 20, weight: .medium))
+                    Text("Continue with Email")
+                        .font(.system(size: 20, weight: .medium))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(width: 320, height: 56)
+                .foregroundStyle(Color.digitBrand)
+                .background(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.digitBrand, lineWidth: 1.7)
+                )
+                .cornerRadius(12)
+            }
+            .accessibilityLabel("Continue with Email")
+            .disabled(isLoading)
             // Google Sign-In Button
             Button(action: onGoogle) {
                 Image("GoogleLogo")
@@ -76,12 +49,11 @@ struct AuthProvidersView: View {
             .background(Color.white)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(hex: "747775"), lineWidth: 1)
+                    .stroke(Color.digitBrand, lineWidth: 1.7)
             )
             .cornerRadius(12)
             .accessibilityLabel("Sign in with Google")
             .disabled(isLoading)
-            
             // Apple Sign-In Button
             SignInWithAppleButton(
                 .continue,
@@ -93,8 +65,8 @@ struct AuthProvidersView: View {
             .cornerRadius(12)
             .accessibilityLabel("Continue with Apple")
             .disabled(isLoading)
-            
-            // Facebook Sign-In Button
+            // Facebook Sign-In Button (commented out for now)
+            /*
             Button(action: onFacebook) {
                 Image("FacebookButton")
                     .resizable()
@@ -106,6 +78,7 @@ struct AuthProvidersView: View {
             .cornerRadius(12)
             .accessibilityLabel("Continue with Facebook")
             .disabled(isLoading)
+            */
         }
     }
 }

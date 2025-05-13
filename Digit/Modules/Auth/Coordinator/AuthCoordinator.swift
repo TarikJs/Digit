@@ -8,8 +8,10 @@ enum AuthState {
 
 final class AuthCoordinator: ObservableObject {
     @Published var currentState: AuthState = .auth
+    let authViewModel: AuthViewModel
     
-    init() {
+    init(authViewModel: AuthViewModel) {
+        self.authViewModel = authViewModel
         NotificationCenter.default.addObserver(self, selector: #selector(handleProceedToMain), name: .proceedToMain, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleProceedToOnboarding), name: .proceedToOnboarding, object: nil)
     }
@@ -32,6 +34,7 @@ final class AuthCoordinator: ObservableObject {
         case .auth:
             AuthView()
                 .environmentObject(self)
+                .environmentObject(authViewModel)
         case .onboarding:
             OnboardingView(viewModel: OnboardingViewModel(
                 onComplete: { [weak self] in
@@ -46,8 +49,11 @@ final class AuthCoordinator: ObservableObject {
                 }
             ))
             .environmentObject(self)
+            .environmentObject(authViewModel)
         case .main:
             MainTabView()
+                .environmentObject(self)
+                .environmentObject(authViewModel)
         }
     }
     

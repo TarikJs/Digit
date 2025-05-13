@@ -9,6 +9,7 @@ final class AuthViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoading: Bool = false
     @Published var isWaitingForVerification: Bool = false
+    @Published var currentUserProfile: UserProfile? = nil
     
     // Track sign-in attempts
     private var lastSignInAttempt: Date?
@@ -127,20 +128,27 @@ final class AuthViewModel: ObservableObject {
         do {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id.uuidString
+            print("[DEBUG] Fetching profile for userId: \(userId)")
             let response = try await SupabaseManager.shared.client
                 .from("profiles")
                 .select("*")
                 .eq("id", value: userId)
                 .execute()
-            
+            print("[DEBUG] Supabase response: \(String(data: response.data, encoding: .utf8) ?? "nil")")
             if let profiles = try? JSONDecoder().decode([UserProfile].self, from: response.data),
-               !profiles.isEmpty {
+               let profile = profiles.first {
+                print("[DEBUG] Decoded profile: \(profile)")
+                await MainActor.run {
+                    self.currentUserProfile = profile
+                }
                 NotificationCenter.default.post(name: .proceedToMain, object: nil)
                 return
+            } else {
+                print("[DEBUG] No profile found or decoding failed.")
             }
             NotificationCenter.default.post(name: .proceedToOnboarding, object: nil)
         } catch {
-            print("Error checking profile: \(error)")
+            print("[DEBUG] Error checking profile: \(error)")
             NotificationCenter.default.post(name: .proceedToOnboarding, object: nil)
         }
     }

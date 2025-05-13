@@ -6,7 +6,7 @@ struct OnboardingView: View {
     
     var body: some View {
         ZStack {
-            Color.background
+            Color.digitBackground
                 .ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 32) {

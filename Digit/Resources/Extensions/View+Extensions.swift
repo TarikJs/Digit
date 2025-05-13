@@ -22,7 +22,7 @@ extension View {
     /// Applies the background color from the app's color assets
     /// - Returns: A view with the app's background color applied
     func appBackground() -> some View {
-        self.background(Color.background)
+        self.background(Color.digitBackground)
     }
     
     /// Applies common styling for primary buttons in the app

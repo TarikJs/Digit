@@ -11,24 +11,24 @@ struct HabitView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color("BackgroundColor")
+                Color.digitBackground
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: DigitLayout.Spacing.xl) {
                         if let habit = viewModel.currentHabit {
                             // Current Habit Card
                             habitCard(habit)
                             
                             // Stats Cards
-                            HStack(spacing: 16) {
+                            HStack(spacing: DigitLayout.Spacing.large) {
                                 // Streak Card
                                 statsCard(
                                     title: "Current Streak",
                                     value: "\(habit.currentStreak)",
                                     subtitle: "Best: \(habit.bestStreak) days",
                                     icon: "flame.fill",
-                                    color: .orange
+                                    color: .digitHabitYellow
                                 )
                                 
                                 // Completion Rate Card
@@ -37,10 +37,10 @@ struct HabitView: View {
                                     value: "\(Int(habit.completionRate * 100))%",
                                     subtitle: "Keep it up!",
                                     icon: "chart.bar.fill",
-                                    color: .green
+                                    color: .digitHabitGreen
                                 )
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, DigitLayout.Padding.horizontal)
                             
                             // Delete Button
                             Button(role: .destructive, action: {
@@ -49,22 +49,23 @@ struct HabitView: View {
                                 }
                             }) {
                                 Text("Delete Habit")
+                                    .font(.digitBody)
                                     .foregroundStyle(.red)
                             }
-                            .padding(.top)
+                            .padding(.top, DigitLayout.Spacing.large)
                         } else {
                             // Empty State
-                            VStack(spacing: 24) {
+                            VStack(spacing: DigitLayout.Spacing.xl) {
                                 Image(systemName: "sparkles")
-                                    .font(.system(size: 48))
-                                    .foregroundStyle(Color.brand)
+                                    .font(.digitIconLarge)
+                                    .foregroundStyle(Color.digitBrand)
                                 
                                 Text("Start Your Journey")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(Color.brand)
+                                    .font(.digitTitle)
+                                    .foregroundStyle(Color.digitBrand)
                                 
                                 Text("Create your first habit to begin tracking your progress.")
+                                    .font(.digitBody)
                                     .multilineTextAlignment(.center)
                                     .foregroundStyle(.secondary)
                                 
@@ -72,19 +73,15 @@ struct HabitView: View {
                                     viewModel.showingCreateHabit = true
                                 }) {
                                     Text("Create Habit")
-                                        .font(.headline)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 56)
-                                        .background(Color.brand)
-                                        .foregroundStyle(.white)
-                                        .cornerRadius(12)
+                                        .font(.digitHeadline)
+                                        .digitButton()
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, DigitLayout.Padding.horizontal)
                             }
                             .padding()
                         }
                     }
-                    .padding(.top)
+                    .padding(.top, DigitLayout.Spacing.large)
                 }
                 
                 if viewModel.isLoading {
@@ -95,6 +92,7 @@ struct HabitView: View {
                 }
             }
             .navigationTitle("Your Habit")
+            .outlinedNavigationBar()
             .sheet(isPresented: $viewModel.showingCreateHabit) {
                 createHabitSheet
             }
@@ -120,14 +118,13 @@ struct HabitView: View {
     }
     
     private func habitCard(_ habit: Habit) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DigitLayout.Spacing.large) {
             Text(habit.title)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.brand)
+                .font(.digitTitle2)
+                .foregroundStyle(Color.digitBrand)
             
             Text("Preferred time: \(habit.preferredTime.rawValue)")
-                .font(.subheadline)
+                .font(.digitSubheadline)
                 .foregroundStyle(.secondary)
             
             Button(action: {
@@ -137,91 +134,80 @@ struct HabitView: View {
             }) {
                 HStack {
                     Image(systemName: habit.isCompletedToday ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 24))
+                        .font(.digitIconMedium)
                     Text(habit.isCompletedToday ? "Completed Today" : "Mark as Complete")
-                        .font(.headline)
+                        .font(.digitHeadline)
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(habit.isCompletedToday ? Color.green : Color.brand)
-                .foregroundStyle(.white)
-                .cornerRadius(12)
+                .digitButton(background: habit.isCompletedToday ? .digitHabitGreen : .digitBrand)
             }
         }
-        .padding()
-        .background(.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10)
-        .padding(.horizontal)
+        .digitCard()
+        .padding(.horizontal, DigitLayout.Padding.horizontal)
     }
     
     private func statsCard(title: String, value: String, subtitle: String, icon: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DigitLayout.Spacing.small) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.digitIconExtraSmall)
                     .foregroundStyle(color)
                 Text(title)
-                    .font(.subheadline)
+                    .font(.digitSubheadline)
                     .foregroundStyle(.secondary)
             }
             
             Text(value)
-                .font(.system(size: 32, weight: .bold))
-                .foregroundStyle(Color.brand)
+                .font(.digitLargeTitle)
+                .foregroundStyle(Color.digitBrand)
             
             Text(subtitle)
-                .font(.caption)
+                .font(.digitCaption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 10)
+        .digitCard()
     }
     
     private var createHabitSheet: some View {
         NavigationView {
             ZStack {
-                Color("BackgroundColor")
+                Color.digitBackground
                     .ignoresSafeArea()
                 
-                VStack(spacing: 24) {
+                VStack(spacing: DigitLayout.Spacing.xl) {
                     Text("What habit would you like to build?")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.brand)
+                        .font(.digitTitle2)
+                        .foregroundStyle(Color.digitBrand)
                         .multilineTextAlignment(.center)
-                        .padding(.top)
+                        .padding(.top, DigitLayout.Spacing.large)
                     
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DigitLayout.Spacing.small) {
                         Text("Habit Title")
-                            .font(.subheadline)
+                            .font(.digitSubheadline)
                             .foregroundStyle(.secondary)
                         
                         TextField("", text: $viewModel.newHabitTitle)
-                            .font(.system(size: 24))
+                            .font(.digitTitle)
                             .placeholder(when: viewModel.newHabitTitle.isEmpty) {
                                 Text("e.g., Exercise daily")
+                                    .font(.digitTitle)
                                     .foregroundStyle(.secondary)
                             }
                             .padding()
-                            .frame(height: 56)
+                            .frame(height: DigitLayout.Size.buttonHeight)
                             .background(.white)
-                            .cornerRadius(12)
+                            .cornerRadius(DigitLayout.cornerRadius)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.brand, lineWidth: 1.7)
+                                RoundedRectangle(cornerRadius: DigitLayout.cornerRadius)
+                                    .stroke(Color.digitBrand, lineWidth: DigitLayout.borderWidth)
                             )
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, DigitLayout.Padding.horizontal)
                     
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DigitLayout.Spacing.small) {
                         Text("Preferred Time")
-                            .font(.subheadline)
+                            .font(.digitSubheadline)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal)
+                            .padding(.horizontal, DigitLayout.Padding.horizontal)
                         
                         ForEach(PreferredHabitTime.allCases, id: \.self) { time in
                             Button(action: {
@@ -229,25 +215,25 @@ struct HabitView: View {
                             }) {
                                 HStack {
                                     Text(time.rawValue)
-                                        .font(.system(size: 18))
+                                        .font(.digitBody)
                                     Spacer()
                                     if viewModel.selectedTime == time {
                                         Image(systemName: "checkmark")
-                                            .font(.system(size: 18, weight: .medium))
-                                            .foregroundStyle(Color.brand)
+                                            .font(.digitIconExtraSmall)
+                                            .foregroundStyle(Color.digitBrand)
                                     }
                                 }
                                 .padding()
-                                .frame(height: 56)
+                                .frame(height: DigitLayout.Size.buttonHeight)
                                 .background(.white)
-                                .cornerRadius(12)
+                                .cornerRadius(DigitLayout.cornerRadius)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.brand, lineWidth: 1.7)
+                                    RoundedRectangle(cornerRadius: DigitLayout.cornerRadius)
+                                        .stroke(Color.digitBrand, lineWidth: DigitLayout.borderWidth)
                                 )
                             }
                             .buttonStyle(.plain)
-                            .padding(.horizontal)
+                            .padding(.horizontal, DigitLayout.Padding.horizontal)
                         }
                     }
                     
@@ -259,20 +245,18 @@ struct HabitView: View {
                         }
                     }) {
                         Text("Create Habit")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.brand)
-                            .foregroundStyle(.white)
-                            .cornerRadius(12)
+                            .font(.digitHeadline)
+                            .digitButton()
                     }
-                    .padding()
+                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                    .padding(.bottom, DigitLayout.Spacing.large)
                 }
             }
             .navigationBarItems(
                 trailing: Button("Cancel") {
                     viewModel.showingCreateHabit = false
                 }
+                .foregroundStyle(Color.digitBrand)
             )
         }
     }

@@ -51,6 +51,20 @@ extension Color {
     static let digitDivider = digitBrand.opacity(0.1)
 }
 
+// MARK: - Habit Progress Greens (from HabitGridColorScale)
+extension Color {
+    /// Very light green for 0% completion (#E9F6E2)
+    static let digitProgressGreen1 = Color(hex: "E9F6E2")
+    /// Light green for 1-24% completion (#B6E3A1)
+    static let digitProgressGreen2 = Color(hex: "B6E3A1")
+    /// Medium green for 25-49% completion (#6CC644)
+    static let digitProgressGreen3 = Color(hex: "6CC644")
+    /// Darker green for 50-74% completion (#44A340)
+    static let digitProgressGreen4 = Color(hex: "44A340")
+    /// Dark green for 75-100% completion (#216E39)
+    static let digitProgressGreen5 = Color(hex: "216E39")
+}
+
 // MARK: - Color Initialization
 extension Color {
     /// Initialize a color from a hex string

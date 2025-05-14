@@ -5,13 +5,14 @@ public struct DigitHeaderView: View {
     var topPadding: CGFloat
     var bottomPadding: CGFloat
     let onCalendarTap: (() -> Void)?
-    // let onPlusTap: (() -> Void)?
+    let onPlusTap: (() -> Void)?
 
-    public init(name: String = "Welcome!", topPadding: CGFloat = 16, bottomPadding: CGFloat = 16, onCalendarTap: (() -> Void)? = nil) {
+    public init(name: String = "Welcome!", topPadding: CGFloat = 16, bottomPadding: CGFloat = 16, onCalendarTap: (() -> Void)? = nil, onPlusTap: (() -> Void)? = nil) {
         self.name = name
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
         self.onCalendarTap = onCalendarTap
+        self.onPlusTap = onPlusTap
     }
 
     public var body: some View {
@@ -69,6 +70,9 @@ public struct DigitHeaderView: View {
                 }
                 .frame(width: 36, height: 36)
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .onTapGesture {
+                    onPlusTap?()
+                }
             }
         }
         .padding(.top, topPadding)

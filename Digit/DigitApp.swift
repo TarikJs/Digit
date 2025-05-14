@@ -8,6 +8,13 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Orientation Lock AppDelegate
+class PortraitAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        return .portrait
+    }
+}
+
 // MARK: - Tab Bar Appearance Setup
 private func setupTabBarAppearance() {
     let appearance = UITabBarAppearance()
@@ -50,6 +57,7 @@ final class AppCoordinator: ObservableObject, SplashCoordinatorDelegate {
 
 @main
 struct DigitApp: App {
+    @UIApplicationDelegateAdaptor(PortraitAppDelegate.self) var appDelegate
     @StateObject private var authViewModel: AuthViewModel
     @StateObject private var coordinator: AuthCoordinator
 

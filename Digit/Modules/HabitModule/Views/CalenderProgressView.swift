@@ -41,21 +41,20 @@ struct CalenderProgressView: View {
         let habits: [CalenderProgressView.HabitSummary]
         var body: some View {
             VStack(spacing: 0) {
-                // Section header, closer and larger
-                Text("Your Month at a Glance")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.digitBrand)
-                    .padding(.top, 8)
-                    .padding(.bottom, 2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, DigitLayout.Padding.horizontal)
-                // Subtitle
-                Text("Showing your last 3 months of progress.")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.digitSecondaryText)
-                    .padding(.bottom, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                // Full-width brand header
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your Month at a Glance")
+                        .font(.digitTitle2)
+                        .foregroundStyle(Color.white)
+                    Text("Showing your last 3 months of progress.")
+                        .font(.digitBody)
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+                .padding(.vertical, 18)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.digitBrand.edgesIgnoringSafeArea(.top))
+                .padding(.bottom, 16)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(habits) { habit in

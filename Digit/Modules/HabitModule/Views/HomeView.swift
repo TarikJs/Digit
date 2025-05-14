@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HomeView: View {
+    var onHabitCompleted: () -> Void = {}
     @StateObject private var viewModel = HomeViewModel()
     @State private var progressCurrentPage: Int = 0
     private let progressCards: [ProgressCardData] = [
@@ -107,7 +108,16 @@ struct HomeView: View {
                                         title: habit.title,
                                         progress: habit.progress,
                                         goal: habit.goal,
-                                        onIncrement: { viewModel.incrementHabit(habit.id) },
+                                        onIncrement: {
+                                            let wasComplete = habit.progress >= habit.goal
+                                            viewModel.incrementHabit(habit.id)
+                                            // Find updated habit
+                                            if let updatedHabit = viewModel.habits.first(where: { $0.id == habit.id }) {
+                                                if !wasComplete && updatedHabit.progress >= updatedHabit.goal {
+                                                    onHabitCompleted()
+                                                }
+                                            }
+                                        },
                                         onDecrement: { viewModel.decrementHabit(habit.id) }
                                     )
                                 }

@@ -107,6 +107,7 @@ struct HabitView: View {
                             dailyGoal: 1,
                             icon: "figure.walk", // placeholder
                             startDate: Date(),
+                            endDate: nil,
                             repeatFrequency: "daily",
                             weekdays: nil,
                             reminderTime: nil

@@ -1,5 +1,23 @@
 import Foundation
 
+// MARK: - Postgres DateFormatter Extensions
+extension DateFormatter {
+    static let postgresTimestamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSXXXXX"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+    static let postgresTimestampNoMillis: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssXXXXX"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+}
+
 /// Represents a habit tracked by the user, matching the Supabase habits table schema.
 struct Habit: Identifiable, Codable, Equatable {
     // MARK: - Properties
@@ -45,6 +63,53 @@ struct Habit: Identifiable, Codable, Equatable {
         case reminderTime = "reminder_time"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    // Custom Decodable implementation to handle multiple date formats
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        userId = try container.decode(UUID.self, forKey: .userId)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        dailyGoal = try container.decode(Int.self, forKey: .dailyGoal)
+        icon = try container.decode(String.self, forKey: .icon)
+        repeatFrequency = try container.decode(String.self, forKey: .repeatFrequency)
+        weekdays = try container.decodeIfPresent([Int].self, forKey: .weekdays)
+        reminderTime = try container.decodeIfPresent(String.self, forKey: .reminderTime)
+
+        func decodeDate(forKey key: CodingKeys) throws -> Date {
+            let string = try container.decode(String.self, forKey: key)
+            // Try ISO8601 with fractional seconds and timezone offset
+            let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withColonSeparatorInTimeZone]
+            if let date = isoFormatter.date(from: string) {
+                return date
+            }
+            // Try Postgres with millis
+            if let date = DateFormatter.postgresTimestamp.date(from: string) {
+                return date
+            }
+            // Try Postgres without millis
+            if let date = DateFormatter.postgresTimestampNoMillis.date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(forKey: key, in: container, debugDescription: "Invalid date format: \(string)")
+        }
+
+        startDate = try decodeDate(forKey: .startDate)
+        // endDate is optional
+        if let endDateString = try container.decodeIfPresent(String.self, forKey: .endDate) {
+            let isoFormatter = ISO8601DateFormatter()
+            isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withColonSeparatorInTimeZone]
+            endDate = isoFormatter.date(from: endDateString)
+                ?? DateFormatter.postgresTimestamp.date(from: endDateString)
+                ?? DateFormatter.postgresTimestampNoMillis.date(from: endDateString)
+        } else {
+            endDate = nil
+        }
+        createdAt = try decodeDate(forKey: .createdAt)
+        updatedAt = try decodeDate(forKey: .updatedAt)
     }
 
     init(

@@ -49,8 +49,18 @@ final class HabitService: HabitServiceProtocol {
             .execute()
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let habits = try decoder.decode([Habit].self, from: response.data)
-        return habits
+        // DEBUG: Print raw JSON response
+        if let jsonString = String(data: response.data, encoding: .utf8) {
+            print("[DEBUG] Habits JSON response: \n\(jsonString)")
+        }
+        do {
+            let habits = try decoder.decode([Habit].self, from: response.data)
+            return habits
+        } catch {
+            print("[DEBUG] Decoding error: \(error)")
+            print("[DEBUG] Raw data: \(String(data: response.data, encoding: .utf8) ?? "<no data>")")
+            throw error
+        }
     }
 
     /// Adds a new habit for the current user.
@@ -93,8 +103,18 @@ final class HabitService: HabitServiceProtocol {
             .execute()
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let habits = try decoder.decode([Habit].self, from: response.data)
-        return habits.first
+        // DEBUG: Print raw JSON response
+        if let jsonString = String(data: response.data, encoding: .utf8) {
+            print("[DEBUG] getCurrentHabit JSON response: \n\(jsonString)")
+        }
+        do {
+            let habits = try decoder.decode([Habit].self, from: response.data)
+            return habits.first
+        } catch {
+            print("[DEBUG] Decoding error (getCurrentHabit): \(error)")
+            print("[DEBUG] Raw data (getCurrentHabit): \(String(data: response.data, encoding: .utf8) ?? "<no data>")")
+            throw error
+        }
     }
     
     func deleteHabit(_ habitId: String) async throws {

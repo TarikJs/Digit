@@ -1,75 +1,5 @@
 import SwiftUI
 
-// MARK: - ViewModel
-@MainActor
-final class NewHabitViewModel: ObservableObject {
-    enum Category: String, CaseIterable, Identifiable {
-        case body = "Body Health"
-        case mind = "Mind Health"
-        var id: String { rawValue }
-    }
-    struct Icon: Identifiable, Hashable {
-        let id: String
-        let systemName: String
-    }
-    // MARK: - Inputs
-    @Published var name: String = ""
-    @Published var description: String = ""
-    @Published var category: Category? = nil
-    @Published var hasGoal: Bool = false
-    @Published var goalPerDay: Int = 1
-    @Published var startDate: Date = .now
-    @Published var endDate: Date? = nil
-    @Published var repeatFrequency: RepeatFrequency = .everyDay
-    @Published var selectedWeekdays: Set<Int> = [] // 1=Sunday ... 7=Saturday
-    @Published var alertEnabled: Bool = false
-    @Published var alertTime: Date = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now) ?? .now
-    @Published var selectedIcon: Icon? = nil
-    @Published var isSaving: Bool = false
-    @Published var errorMessage: String? = nil
-
-    // MARK: - Constants
-    let icons: [Icon] = [
-        .init(id: "figure.walk", systemName: "figure.walk"),
-        .init(id: "flame.fill", systemName: "flame.fill"),
-        .init(id: "heart.fill", systemName: "heart.fill"),
-        .init(id: "bed.double.fill", systemName: "bed.double.fill"),
-        .init(id: "book.fill", systemName: "book.fill"),
-        .init(id: "brain.head.profile", systemName: "brain.head.profile"),
-        .init(id: "drop.fill", systemName: "drop.fill"),
-        .init(id: "leaf.fill", systemName: "leaf.fill"),
-        .init(id: "bolt.heart.fill", systemName: "bolt.heart.fill"),
-        .init(id: "star.fill", systemName: "star.fill"),
-        .init(id: "sun.max.fill", systemName: "sun.max.fill"),
-        .init(id: "moon.fill", systemName: "moon.fill"),
-        .init(id: "nosign", systemName: "nosign")
-    ]
-    let maxGoal: Int = 1000
-    let minGoal: Int = 1
-
-    enum RepeatFrequency: String, CaseIterable, Identifiable {
-        case everyDay = "Every Day"
-        case weekdays = "Weekdays"
-        case custom = "Custom"
-        var id: String { rawValue }
-    }
-
-    // MARK: - Validation
-    var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && selectedIcon != nil && goalPerDay >= minGoal
-    }
-
-    // MARK: - Save
-    func saveHabit() async {
-        guard canSave else { return }
-        isSaving = true
-        defer { isSaving = false }
-        // Simulate save (replace with real persistence)
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        // TODO: Integrate with real habit persistence
-    }
-}
-
 // MARK: - View
 struct NewHabitView: View {
     // MARK: - Padding Constants
@@ -79,8 +9,16 @@ struct NewHabitView: View {
     private static let cardVerticalPadding: CGFloat = 24
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject var homeViewModel: HomeViewModel
+    @StateObject private var habitViewModel: HabitViewModel
     @StateObject private var viewModel = NewHabitViewModel()
     let onDismiss: () -> Void
+
+    init(onDismiss: @escaping () -> Void, userId: String, homeViewModel: HomeViewModel) {
+        self.onDismiss = onDismiss
+        self.homeViewModel = homeViewModel
+        _habitViewModel = StateObject(wrappedValue: HabitViewModel(habitService: HabitService(), userId: userId))
+    }
 
     var body: some View {
         NavigationView {
@@ -122,10 +60,16 @@ struct NewHabitView: View {
             }
             .navigationBarHidden(true)
             .alert(isPresented: Binding<Bool>(
-                get: { viewModel.errorMessage != nil },
-                set: { _ in viewModel.errorMessage = nil }
+                get: { habitViewModel.errorMessage != nil },
+                set: { _ in habitViewModel.errorMessage = nil }
             )) {
-                Alert(title: Text("Error"), message: Text(viewModel.errorMessage ?? ""), dismissButton: .default(Text("OK")))
+                Alert(title: Text("Error"), message: Text(habitViewModel.errorMessage ?? ""), dismissButton: .default(Text("OK")))
+            }
+        }
+        .onAppear {
+            habitViewModel.onHabitCreated = {
+                homeViewModel.selectDate(homeViewModel.selectedDate)
+                dismiss()
             }
         }
     }
@@ -246,103 +190,118 @@ struct NewHabitView: View {
             Text("Schedule")
                 .font(.digitHeadline)
                 .foregroundStyle(Color.digitBrand)
-            VStack(spacing: 10) {
-                HStack(alignment: .center, spacing: 16) {
-                    Text("Start Date")
-                        .font(.digitBody)
-                        .foregroundStyle(Color.digitBrand)
-                    Spacer()
-                    DatePicker("Start Date", selection: $viewModel.startDate, displayedComponents: .date)
-                        .labelsHidden()
-                        .font(.digitBody)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .foregroundStyle(Color.digitBrand)
-                        .tint(Color.digitProgressGreen4)
-                }
-                HStack(alignment: .center, spacing: 16) {
-                    Text("End Date")
-                        .font(.digitBody)
-                        .foregroundStyle(Color.digitBrand)
-                    Spacer()
-                    DatePicker("End Date", selection: Binding(
-                        get: { viewModel.endDate ?? viewModel.startDate },
-                        set: { viewModel.endDate = $0 }
-                    ), in: viewModel.startDate..., displayedComponents: .date)
-                        .labelsHidden()
-                        .font(.digitBody)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .foregroundStyle(Color.digitBrand)
-                        .tint(Color.digitProgressGreen4)
-                        .accessibilityLabel("End Date")
-                        .onChange(of: viewModel.endDate) { _, newValue in
-                            if let end = newValue, end < viewModel.startDate {
-                                viewModel.endDate = viewModel.startDate
-                            }
-                        }
-                }
+            datePickersSection
+            repeatFrequencySection
+            if viewModel.repeatFrequency == .custom {
+                customWeekdayPicker
             }
-            HStack(spacing: 8) {
-                ForEach(NewHabitViewModel.RepeatFrequency.allCases) { freq in
-                    Button(action: { viewModel.repeatFrequency = freq }) {
-                        Text(freq.rawValue)
+        }
+    }
+
+    // MARK: - Date Pickers Section
+    private var datePickersSection: some View {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 16) {
+                Text("Start Date")
+                    .font(.digitBody)
+                    .foregroundStyle(Color.digitBrand)
+                Spacer()
+                DatePicker("Start Date", selection: $viewModel.startDate, displayedComponents: .date)
+                    .labelsHidden()
+                    .font(.digitBody)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .foregroundStyle(Color.digitBrand)
+                    .tint(Color.digitProgressGreen4)
+            }
+            HStack(alignment: .center, spacing: 16) {
+                Text("End Date")
+                    .font(.digitBody)
+                    .foregroundStyle(Color.digitBrand)
+                Spacer()
+                DatePicker("End Date", selection: Binding(
+                    get: { viewModel.endDate ?? viewModel.startDate },
+                    set: { viewModel.endDate = $0 }
+                ), in: viewModel.startDate..., displayedComponents: .date)
+                    .labelsHidden()
+                    .font(.digitBody)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .foregroundStyle(Color.digitBrand)
+                    .tint(Color.digitProgressGreen4)
+                    .accessibilityLabel("End Date")
+                    .onChange(of: viewModel.endDate) { _, newValue in
+                        if let end = newValue, end < viewModel.startDate {
+                            viewModel.endDate = viewModel.startDate
+                        }
+                    }
+            }
+        }
+    }
+
+    // MARK: - Repeat Frequency Section
+    private var repeatFrequencySection: some View {
+        HStack(spacing: 8) {
+            ForEach(NewHabitViewModel.RepeatFrequency.allCases) { freq in
+                Button(action: { viewModel.repeatFrequency = freq }) {
+                    Text(freq.rawValue)
+                        .font(.digitBody)
+                        .fontWeight(viewModel.repeatFrequency == freq ? .bold : .regular)
+                        .foregroundStyle(viewModel.repeatFrequency == freq ? Color.white : Color.digitBrand)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(viewModel.repeatFrequency == freq ? Color.digitBrand : Color.white)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.digitBrand, lineWidth: 1.2)
+                        )
+                }
+                .accessibilityLabel(freq.rawValue)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
+    }
+
+    // MARK: - Custom Weekday Picker
+    private var customWeekdayPicker: some View {
+        let daySymbols = Calendar.current.shortWeekdaySymbols
+        return GeometryReader { geometry in
+            let buttonCount = 7
+            let totalSpacing: CGFloat = 6 * CGFloat(buttonCount - 1)
+            let buttonWidth = (geometry.size.width - totalSpacing) / CGFloat(buttonCount)
+            HStack(spacing: 6) {
+                ForEach(Array(1...7), id: \.self) { weekday in
+                    let symbol = daySymbols[weekday - 1]
+                    Button(action: {
+                        if viewModel.selectedWeekdays.contains(weekday) {
+                            viewModel.selectedWeekdays.remove(weekday)
+                        } else {
+                            viewModel.selectedWeekdays.insert(weekday)
+                        }
+                    }) {
+                        Text(symbol)
                             .font(.digitBody)
-                            .fontWeight(viewModel.repeatFrequency == freq ? .bold : .regular)
-                            .foregroundStyle(viewModel.repeatFrequency == freq ? Color.white : Color.digitBrand)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(viewModel.repeatFrequency == freq ? Color.digitBrand : Color.white)
-                            .cornerRadius(10)
+                            .fontWeight(.semibold)
+                            .frame(width: buttonWidth, height: 36)
+                            .background(viewModel.selectedWeekdays.contains(weekday) ? Color.digitBrand : Color.white)
+                            .foregroundStyle(viewModel.selectedWeekdays.contains(weekday) ? Color.white : Color.digitBrand)
+                            .cornerRadius(8)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 10)
+                                RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color.digitBrand, lineWidth: 1.2)
                             )
                     }
-                    .accessibilityLabel(freq.rawValue)
+                    .accessibilityLabel(symbol)
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 2)
-            if viewModel.repeatFrequency == .custom {
-                let daySymbols = Calendar.current.shortWeekdaySymbols
-                GeometryReader { geometry in
-                    let buttonCount = 7
-                    let totalSpacing: CGFloat = 6 * CGFloat(buttonCount - 1)
-                    let buttonWidth = (geometry.size.width - totalSpacing) / CGFloat(buttonCount)
-                    HStack(spacing: 6) {
-                        ForEach(1...7, id: \ .self) { weekday in
-                            let symbol = daySymbols[weekday - 1]
-                            Button(action: {
-                                if viewModel.selectedWeekdays.contains(weekday) {
-                                    viewModel.selectedWeekdays.remove(weekday)
-                                } else {
-                                    viewModel.selectedWeekdays.insert(weekday)
-                                }
-                            }) {
-                                Text(symbol)
-                                    .font(.digitBody)
-                                    .fontWeight(.semibold)
-                                    .frame(width: buttonWidth, height: 36)
-                                    .background(viewModel.selectedWeekdays.contains(weekday) ? Color.digitBrand : Color.white)
-                                    .foregroundStyle(viewModel.selectedWeekdays.contains(weekday) ? Color.white : Color.digitBrand)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.digitBrand, lineWidth: 1.2)
-                                    )
-                            }
-                            .accessibilityLabel(symbol)
-                        }
-                    }
-                }
-                .frame(height: 36)
             }
         }
+        .frame(height: 36)
     }
     private var alertSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -461,14 +420,11 @@ struct NewHabitView: View {
     private var saveButtonSection: some View {
         Button(action: {
             Task {
-                await viewModel.saveHabit()
-                if viewModel.canSave {
-                    onDismiss()
-                }
+                await viewModel.saveHabit(using: habitViewModel)
             }
         }) {
             HStack {
-                if viewModel.isSaving {
+                if viewModel.isLoading || viewModel.isSaving {
                     ProgressView()
                         .progressViewStyle(.circular)
                 }
@@ -481,8 +437,22 @@ struct NewHabitView: View {
             .background(viewModel.canSave ? Color.digitBrand : Color.digitBrand.opacity(0.4))
             .cornerRadius(14)
         }
-        .disabled(!viewModel.canSave || viewModel.isSaving)
+        .disabled(!viewModel.canSave || viewModel.isLoading || viewModel.isSaving)
         .padding(.top, 8)
+        .onAppear {
+            viewModel.onSave = { success in
+                if success {
+                    homeViewModel.selectDate(homeViewModel.selectedDate)
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    private func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: date)
     }
 }
 
@@ -523,7 +493,18 @@ struct RoundedCorners: Shape {
 }
 
 #if DEBUG
+private class MockHabitService: HabitServiceProtocol {
+    func fetchHabits() async throws -> [Habit] { [] }
+    func addHabit(_ habit: Habit) async throws {}
+    func updateHabit(_ habit: Habit) async throws {}
+    func deleteHabit(id: UUID) async throws {}
+    func getCurrentHabit(for userId: String) async throws -> Habit? { nil }
+}
 #Preview {
-    NewHabitView(onDismiss: {})
+    NewHabitView(
+        onDismiss: {},
+        userId: "preview-user-id",
+        homeViewModel: HomeViewModel(habitService: MockHabitService())
+    )
 }
 #endif 

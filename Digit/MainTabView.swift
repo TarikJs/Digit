@@ -5,6 +5,7 @@ struct MainTabView: View {
     @EnvironmentObject private var authCoordinator: AuthCoordinator
     @EnvironmentObject private var authViewModel: AuthViewModel
     
+    @StateObject private var homeViewModel = HomeViewModel(habitService: HabitService())
     @State private var showCalendarSheet = false
     @State private var confettiTrigger = 0
     @State private var showNewHabitSheet = false
@@ -30,7 +31,7 @@ struct MainTabView: View {
                 ZStack(alignment: .bottom) {
                     TabView {
                         NavigationView {
-                            HomeView(onHabitCompleted: { confettiTrigger += 1 })
+                            HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel)
                                 .navigationBarHidden(true)
                         }
                         .tabItem {
@@ -84,7 +85,7 @@ struct MainTabView: View {
                 CalenderProgressView()
             }
             .sheet(isPresented: $showNewHabitSheet) {
-                NewHabitView(onDismiss: { showNewHabitSheet = false })
+                NewHabitView(onDismiss: { showNewHabitSheet = false }, userId: authViewModel.currentUserProfile?.id ?? "", homeViewModel: homeViewModel)
             }
         }
         .confettiCannon(trigger: $confettiTrigger, num: 30, colors: [.red, .blue, .green, .yellow, .purple])

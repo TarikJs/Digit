@@ -8,7 +8,7 @@ final class HomeViewModel: ObservableObject {
     @Published var waterGoal = 10
     @Published var bookProgress = 0
     @Published var bookGoal = 30
-    @Published var habits: [DailyHabit] = []
+    @Published var habits: [Habit] = []
     @Published var userName: String = "Name Surname"
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -16,9 +16,11 @@ final class HomeViewModel: ObservableObject {
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
     private let calendar = Calendar.current
+    private let habitService: HabitServiceProtocol
     
     // MARK: - Initialization
-    init() {
+    init(habitService: HabitServiceProtocol, /* other params if any */) {
+        self.habitService = habitService
         loadInitialData()
         setupDateObserver()
     }
@@ -39,78 +41,39 @@ final class HomeViewModel: ObservableObject {
         saveProgress()
     }
     
-    func toggleHabit(_ habitId: String) {
-        if let index = habits.firstIndex(where: { $0.id == habitId }) {
-            habits[index].isCompleted.toggle()
-            saveHabits()
-        }
-    }
-    
-    func incrementHabit(_ habitId: String) {
-        if let index = habits.firstIndex(where: { $0.id == habitId }) {
-            if habits[index].progress < habits[index].goal {
-                habits[index].progress += 1
-                saveHabits()
-            }
-        }
-    }
-    
-    func decrementHabit(_ habitId: String) {
-        if let index = habits.firstIndex(where: { $0.id == habitId }) {
-            if habits[index].progress > 0 {
-                habits[index].progress -= 1
-                saveHabits()
-            }
-        }
-    }
-    
-    // MARK: - Private Methods
+    // MARK: - Data Loading
     private func loadInitialData() {
-        isLoading = true
-        
-        // Load user data
-        loadUserProfile()
-        
-        // Load habits for today
-        loadHabitsForSelectedDate()
-        
-        // Load progress
+        // Load initial data if needed
         loadProgress()
-        
-        isLoading = false
+        Task {
+            await loadHabitsFromBackend()
+        }
     }
     
     private func setupDateObserver() {
-        // Observe date changes to reload data
-        $selectedDate
-            .dropFirst()
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.loadHabitsForSelectedDate()
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func loadUserProfile() {
-        // TODO: Load from UserDefaults or API
-        // For now using mock data
-        userName = UserDefaults.standard.string(forKey: "userName") ?? "Name Surname"
+        // Setup any observers if needed
     }
     
     private func loadHabitsForSelectedDate() {
-        // TODO: Load from persistence or API
-        // For now using mock data
-        habits = [
-            DailyHabit(id: "1", title: "Wake up at 9:00", icon: "bed.double.fill", color: .digitHabitPurple, progress: 0, goal: 1),
-            DailyHabit(id: "2", title: "Work out", icon: "figure.walk", color: .digitHabitGreen, progress: 2, goal: 5),
-            DailyHabit(id: "3", title: "Meditation 30 min", icon: "brain.head.profile", color: .digitHabitPurple, progress: 1, goal: 7),
-            DailyHabit(id: "4", title: "No cigarettes", icon: "nosign", color: .digitHabitGreen, progress: 0, goal: 1)
-        ]
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                let fetchedHabits = try await habitService.fetchHabits()
+                await MainActor.run {
+                    self.habits = fetchedHabits
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to load habits: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
+        }
     }
     
     private func loadProgress() {
-        // TODO: Load from persistence or API
-        // For now using mock data
         let defaults = UserDefaults.standard
         waterProgress = defaults.integer(forKey: "waterProgress_\(dateKey)")
         bookProgress = defaults.integer(forKey: "bookProgress_\(dateKey)")
@@ -133,15 +96,21 @@ final class HomeViewModel: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: selectedDate)
     }
-}
-
-// MARK: - Models
-struct DailyHabit: Identifiable {
-    let id: String
-    let title: String
-    let icon: String
-    let color: Color
-    var isCompleted: Bool = false
-    var progress: Int
-    var goal: Int
+    
+    private func loadHabitsFromBackend() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let fetchedHabits = try await habitService.fetchHabits()
+            await MainActor.run {
+                self.habits = fetchedHabits
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to load habits: \(error.localizedDescription)"
+                self.isLoading = false
+            }
+        }
+    }
 } 

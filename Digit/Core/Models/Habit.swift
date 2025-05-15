@@ -1,88 +1,79 @@
 import Foundation
 
+/// Represents a habit tracked by the user, matching the Supabase habits table schema.
 struct Habit: Identifiable, Codable, Equatable {
-    let id: String
-    let userId: String
-    let title: String
+    // MARK: - Properties
+    /// Unique identifier for the habit (UUID, primary key)
+    let id: UUID
+    /// The user ID this habit belongs to (UUID, foreign key)
+    let userId: UUID
+    /// Name of the habit
+    let name: String
+    /// Optional description of the habit
+    let description: String?
+    /// Daily goal (e.g., number of repetitions)
+    let dailyGoal: Int
+    /// SF Symbol or custom icon name
+    let icon: String
+    /// The date the habit starts
+    let startDate: Date
+    /// The date the habit ends (optional)
+    let endDate: Date?
+    /// Repeat frequency (e.g., "daily", "weekly", "custom")
+    let repeatFrequency: String
+    /// Optional array of weekdays for custom repeat (0=Sun, 6=Sat)
+    let weekdays: [Int]?
+    /// Optional reminder time as a string ("HH:mm:ss")
+    let reminderTime: String?
+    /// Timestamp when the habit was created
     let createdAt: Date
-    var completedDates: [Date]
-    var preferredTime: PreferredHabitTime
-    var currentStreak: Int
-    var bestStreak: Int
-    var lastCompletedDate: Date?
-    
+    /// Timestamp when the habit was last updated
+    let updatedAt: Date
+
+    // MARK: - Coding Keys
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case name = "habit_name"
+        case description
+        case dailyGoal = "daily_goal"
+        case icon
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case repeatFrequency = "repeat_frequency"
+        case weekdays
+        case reminderTime = "reminder_time"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
     init(
-        id: String = UUID().uuidString,
-        userId: String,
-        title: String,
-        preferredTime: PreferredHabitTime,
+        id: UUID = UUID(),
+        userId: UUID,
+        name: String,
+        description: String? = nil,
+        dailyGoal: Int,
+        icon: String,
+        startDate: Date = Date(),
+        endDate: Date? = nil,
+        repeatFrequency: String,
+        weekdays: [Int]? = nil,
+        reminderTime: String? = nil,
         createdAt: Date = Date(),
-        completedDates: [Date] = [],
-        currentStreak: Int = 0,
-        bestStreak: Int = 0,
-        lastCompletedDate: Date? = nil
+        updatedAt: Date = Date()
     ) {
         self.id = id
         self.userId = userId
-        self.title = title
-        self.preferredTime = preferredTime
+        self.name = name
+        self.description = description
+        self.dailyGoal = dailyGoal
+        self.icon = icon
+        self.startDate = startDate
+        self.endDate = endDate
+        self.repeatFrequency = repeatFrequency
+        self.weekdays = weekdays
+        self.reminderTime = reminderTime
         self.createdAt = createdAt
-        self.completedDates = completedDates
-        self.currentStreak = currentStreak
-        self.bestStreak = bestStreak
-        self.lastCompletedDate = lastCompletedDate
-    }
-    
-    // MARK: - Helper Methods
-    
-    var isCompletedToday: Bool {
-        guard let lastCompleted = lastCompletedDate else { return false }
-        return Calendar.current.isDate(lastCompleted, inSameDayAs: Date())
-    }
-    
-    mutating func markCompleted() {
-        let today = Date()
-        completedDates.append(today)
-        lastCompletedDate = today
-        
-        // Update streaks
-        if let lastCompleted = completedDates.sorted().dropLast().last {
-            let calendar = Calendar.current
-            let daysBetween = calendar.dateComponents([.day], from: lastCompleted, to: today).day ?? 0
-            
-            if daysBetween <= 1 {
-                currentStreak += 1
-                bestStreak = max(currentStreak, bestStreak)
-            } else {
-                currentStreak = 1
-            }
-        } else {
-            currentStreak = 1
-            bestStreak = 1
-        }
-    }
-    
-    mutating func markIncomplete() {
-        guard let lastCompleted = lastCompletedDate,
-              Calendar.current.isDate(lastCompleted, inSameDayAs: Date()) else { return }
-        
-        completedDates.removeAll { Calendar.current.isDate($0, inSameDayAs: Date()) }
-        
-        // Update last completed date to previous completion
-        lastCompletedDate = completedDates.sorted().last
-        
-        // Update current streak
-        if currentStreak > 0 {
-            currentStreak -= 1
-        }
-    }
-    
-    var completionRate: Double {
-        guard !completedDates.isEmpty else { return 0 }
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: createdAt)
-        let end = calendar.startOfDay(for: Date())
-        let totalDays = calendar.dateComponents([.day], from: start, to: end).day ?? 1
-        return Double(completedDates.count) / Double(max(1, totalDays))
+        self.updatedAt = updatedAt
     }
 } 

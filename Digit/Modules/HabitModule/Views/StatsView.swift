@@ -91,14 +91,34 @@ struct StatsView: View {
     // MARK: - Extracted: Summary Cards Section
     private var summaryCardsSection: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                ForEach(viewModel.summaryStats) { stat in
-                    HabitStatCard(stat: stat)
+            if viewModel.summaryStats.isEmpty {
+                VStack(spacing: 20) {
+                    Image("asking-question")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .accessibilityLabel("No stats available")
+                    Text("No stats yet")
+                        .font(.digitHeadline)
+                        .foregroundStyle(Color.digitBrand)
+                    Text("Your stats will appear here once you start tracking habits.")
+                        .font(.digitBody)
+                        .foregroundStyle(Color.digitBrand)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
+                .frame(maxWidth: .infinity, minHeight: 300)
+                .padding(.top, 32)
+            } else {
+                VStack(spacing: 14) {
+                    ForEach(viewModel.summaryStats) { stat in
+                        HabitStatCard(stat: stat)
+                    }
+                }
+                .padding(.top, 12)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.bottom, 32)
             }
-            .padding(.top, 12)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.bottom, 32)
         }
     }
     

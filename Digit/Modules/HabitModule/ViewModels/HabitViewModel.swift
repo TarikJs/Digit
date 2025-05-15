@@ -13,7 +13,10 @@ final class HabitViewModel: ObservableObject {
     @Published var newHabitTitle = ""
     @Published var selectedTime: PreferredHabitTime = .morning
     
-    init(habitService: HabitServiceProtocol = HabitService(), userId: String) {
+    // Closure to notify on successful creation (e.g., to refresh HomeViewModel)
+    var onHabitCreated: (() -> Void)?
+    
+    init(habitService: HabitServiceProtocol, userId: String) {
         self.habitService = habitService
         self.userId = userId
     }
@@ -31,52 +34,43 @@ final class HabitViewModel: ObservableObject {
         isLoading = false
     }
     
-    func createNewHabit() async {
-        guard !newHabitTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            errorMessage = "Please enter a habit title"
-            return
-        }
-        
+    /// Creates a new habit and notifies on success.
+    func createNewHabit(
+        name: String,
+        description: String?,
+        dailyGoal: Int,
+        icon: String,
+        startDate: Date,
+        endDate: Date?,
+        repeatFrequency: String,
+        weekdays: [Int]?,
+        reminderTime: String?
+    ) async {
         isLoading = true
         errorMessage = nil
-        
-        let habit = Habit(
-            userId: userId,
-            title: newHabitTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-            preferredTime: selectedTime
-        )
-        
         do {
-            try await habitService.createHabit(habit)
-            currentHabit = habit
-            showingCreateHabit = false
-            newHabitTitle = ""
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let habit = Habit(
+                id: UUID(),
+                userId: userId,
+                name: name,
+                description: description,
+                dailyGoal: dailyGoal,
+                icon: icon,
+                startDate: startDate,
+                endDate: endDate,
+                repeatFrequency: repeatFrequency,
+                weekdays: weekdays,
+                reminderTime: reminderTime,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+            try await habitService.addHabit(habit)
+            onHabitCreated?()
         } catch {
             errorMessage = "Failed to create habit: \(error.localizedDescription)"
         }
-        
-        isLoading = false
-    }
-    
-    func toggleHabitCompletion() async {
-        guard var habit = currentHabit else { return }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        if habit.isCompletedToday {
-            habit.markIncomplete()
-        } else {
-            habit.markCompleted()
-        }
-        
-        do {
-            try await habitService.updateHabit(habit)
-            currentHabit = habit
-        } catch {
-            errorMessage = "Failed to update habit: \(error.localizedDescription)"
-        }
-        
         isLoading = false
     }
     
@@ -87,7 +81,7 @@ final class HabitViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            try await habitService.deleteHabit(habitId)
+            try await habitService.deleteHabit(id: habitId)
             currentHabit = nil
         } catch {
             errorMessage = "Failed to delete habit: \(error.localizedDescription)"

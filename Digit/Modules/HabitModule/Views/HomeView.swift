@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     var onHabitCompleted: () -> Void = {}
-    @StateObject private var viewModel = HomeViewModel()
+    @ObservedObject var viewModel: HomeViewModel
     @State private var progressCurrentPage: Int = 0
     private let progressCards: [ProgressCardData] = [
         .init(icon: "drop.fill", title: "Drink water", progress: "1", goal: "10", unit: "glasses", color: .digitHabitGreen),
@@ -102,24 +102,23 @@ struct HomeView: View {
                             Color.clear.frame(height: 48)
                             // MARK: - Habit List
                             VStack(spacing: 12) {
-                                ForEach(viewModel.habits) { habit in
-                                    HabitGoalCard(
-                                        icon: habit.icon,
-                                        title: habit.title,
-                                        progress: habit.progress,
-                                        goal: habit.goal,
-                                        onIncrement: {
-                                            let wasComplete = habit.progress >= habit.goal
-                                            viewModel.incrementHabit(habit.id)
-                                            // Find updated habit
-                                            if let updatedHabit = viewModel.habits.first(where: { $0.id == habit.id }) {
-                                                if !wasComplete && updatedHabit.progress >= updatedHabit.goal {
-                                                    onHabitCompleted()
-                                                }
-                                            }
-                                        },
-                                        onDecrement: { viewModel.decrementHabit(habit.id) }
-                                    )
+                                if viewModel.habits.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Spacer(minLength: 32)
+                                        Image("asking-question")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 120, height: 120)
+                                            .accessibilityLabel("No habits yet")
+                                        Text("No habits yet. Add your first habit!")
+                                            .font(.digitBody)
+                                            .foregroundStyle(Color.digitBrand.opacity(0.7))
+                                            .multilineTextAlignment(.center)
+                                        Spacer(minLength: 32)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                } else {
+                                    habitGoalCards
                                 }
                             }
                             .padding(.top, 8)
@@ -189,6 +188,29 @@ struct HomeView: View {
         formatter.dateFormat = "EEE"
         return formatter.string(from: date)
     }
+    
+    // MARK: - Split out HabitGoalCards for type-checking
+    private var habitGoalCards: some View {
+        ForEach(viewModel.habits) { habit in
+            HStack(spacing: 12) {
+                Image(systemName: habit.icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(Color.digitBrand)
+                Text(habit.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.digitBrand)
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.digitBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.digitBrand, lineWidth: 1.2)
+            )
+            .cornerRadius(16)
+            .padding(.vertical, 2)
+        }
+    }
 }
 
 struct HabitRow: View {
@@ -237,7 +259,7 @@ struct HabitRow: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(viewModel: HomeViewModel(habitService: HabitService()))
 }
 
 // MARK: - Progress Card Data

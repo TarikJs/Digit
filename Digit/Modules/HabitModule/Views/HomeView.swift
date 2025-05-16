@@ -142,6 +142,9 @@ struct HomeView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+        .onAppear {
+            viewModel.onHabitCompleted = onHabitCompleted
+        }
     }
     
     private var dateSelector: some View {
@@ -192,22 +195,15 @@ struct HomeView: View {
     // MARK: - Split out HabitGoalCards for type-checking
     private var habitGoalCards: some View {
         ForEach(viewModel.habits) { habit in
-            HStack(spacing: 12) {
-                Image(systemName: habit.icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(Color.digitBrand)
-                Text(habit.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.digitBrand)
-                Spacer()
-            }
-            .padding(16)
-            .background(Color.digitBackground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.digitBrand, lineWidth: 1.2)
+            HabitGoalCard(
+                icon: habit.icon,
+                title: habit.name,
+                progress: viewModel.progress(for: habit),
+                goal: habit.dailyGoal,
+                onIncrement: { viewModel.incrementProgress(for: habit) },
+                onDecrement: { viewModel.decrementProgress(for: habit) }
             )
-            .cornerRadius(16)
+            .id(habit.id)
             .padding(.vertical, 2)
         }
     }
@@ -259,7 +255,7 @@ struct HabitRow: View {
 }
 
 #Preview {
-    HomeView(viewModel: HomeViewModel(habitService: HabitService()))
+    HomeView(viewModel: HomeViewModel(habitService: HabitService(), progressService: HabitProgressService(), userId: UUID()))
 }
 
 // MARK: - Progress Card Data

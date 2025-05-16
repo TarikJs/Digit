@@ -504,7 +504,7 @@ private class MockHabitService: HabitServiceProtocol {
     NewHabitView(
         onDismiss: {},
         userId: "preview-user-id",
-        homeViewModel: HomeViewModel(habitService: MockHabitService())
+        homeViewModel: HomeViewModel(habitService: MockHabitService(), progressService: HabitProgressService(), userId: UUID())
     )
 }
 #endif 

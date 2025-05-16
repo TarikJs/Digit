@@ -76,14 +76,14 @@ struct HomeView: View {
                 // Gray section starts immediately after divider
                 ZStack(alignment: .top) {
                     // Sticky header
-                    Color.digitGrayLight
+                    Color.digitBrand
                         .frame(height: 48)
                         .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
                         .overlay(
                             Text("Your Goals")
                                 .font(.digitTitle2)
                                 .fontWeight(.bold)
-                                .foregroundStyle(Color.digitBrand)
+                                .foregroundStyle(Color.white)
                                 .padding(.top, 12)
                                 .padding(.bottom, 8)
                                 .padding(.horizontal, DigitLayout.Padding.horizontal)
@@ -157,7 +157,7 @@ struct HomeView: View {
                         .font(.system(size: 16, weight: .semibold))
                     Text(dayName(from: date))
                         .font(.system(size: 12))
-                    Text("5/10")
+                    Text("\(viewModel.completedHabitsCount(on: date))/\(viewModel.activeHabits(on: date).count)")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
                 }
@@ -193,15 +193,22 @@ struct HomeView: View {
     }
     
     // MARK: - Split out HabitGoalCards for type-checking
+    private func isDateToday(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        return calendar.isDate(calendar.startOfDay(for: date), inSameDayAs: calendar.startOfDay(for: Date()))
+    }
+
     private var habitGoalCards: some View {
-        ForEach(viewModel.habits) { habit in
+        let isToday = isDateToday(viewModel.selectedDate)
+        return ForEach(viewModel.activeHabits(on: viewModel.selectedDate)) { habit in
             HabitGoalCard(
                 icon: habit.icon,
                 title: habit.name,
-                progress: viewModel.progress(for: habit),
-                goal: habit.dailyGoal,
-                onIncrement: { viewModel.incrementProgress(for: habit) },
-                onDecrement: { viewModel.decrementProgress(for: habit) }
+                progress: viewModel.progress(for: habit, on: viewModel.selectedDate),
+                goal: viewModel.goal(for: habit, on: viewModel.selectedDate),
+                onIncrement: { viewModel.incrementProgress(for: habit, on: viewModel.selectedDate) },
+                onDecrement: { viewModel.decrementProgress(for: habit, on: viewModel.selectedDate) },
+                buttonsEnabled: isToday && !viewModel.isUpdatingProgress(for: habit, on: viewModel.selectedDate)
             )
             .id(habit.id)
             .padding(.vertical, 2)

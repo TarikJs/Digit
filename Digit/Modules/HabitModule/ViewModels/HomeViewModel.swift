@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 
+@MainActor
 final class HomeViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var selectedDate = Date()
@@ -20,6 +21,20 @@ final class HomeViewModel: ObservableObject {
     private let habitService: HabitServiceProtocol
     private let progressService: HabitProgressServiceProtocol
     private var userId: UUID
+    // Track which (habit, date) pairs are currently updating to prevent race conditions
+    private var updatingProgressKeys = Set<String>()
+    // Track which (habit, date) pairs have local updates not yet confirmed by backend
+    private var dirtyProgressKeys = Set<String>()
+    
+    // Helper to create a unique key for a habit/date pair
+    private func progressKey(for habit: Habit, date: Date) -> String {
+        "\(habit.id.uuidString)-\(calendar.startOfDay(for: date).timeIntervalSince1970)"
+    }
+
+    // Expose to UI: is a habit/date currently updating?
+    func isUpdatingProgress(for habit: Habit, on date: Date) -> Bool {
+        updatingProgressKeys.contains(progressKey(for: habit, date: date))
+    }
     
     // MARK: - Initialization
     init(habitService: HabitServiceProtocol, progressService: HabitProgressServiceProtocol, userId: UUID) {
@@ -35,48 +50,63 @@ final class HomeViewModel: ObservableObject {
         Task { @MainActor in
             self.selectedDate = calendar.startOfDay(for: date)
         }
-        loadHabitsAndProgressForSelectedDate()
-    }
-    
-    // Returns the progress for a given habit on the selected date
-    func progress(for habit: Habit) -> Int {
-        habitProgress[habit.id]?.progress ?? 0
-    }
-    
-    func goal(for habit: Habit) -> Int {
-        habitProgress[habit.id]?.goal ?? habit.dailyGoal
-    }
-    
-    func incrementProgress(for habit: Habit) {
         Task {
-            var progress = habitProgress[habit.id]?.progress ?? 0
-            let goal = habitProgress[habit.id]?.goal ?? habit.dailyGoal
+            await loadHabitsAndProgressForVisibleDates()
+        }
+    }
+    
+    // Returns the progress for a given habit on a specific date
+    func progress(for habit: Habit, on date: Date) -> Int {
+        habitHistory[habit.id]?[calendar.startOfDay(for: date)]?.progress ?? 0
+    }
+
+    // Returns the goal for a given habit on a specific date
+    func goal(for habit: Habit, on date: Date) -> Int {
+        habitHistory[habit.id]?[calendar.startOfDay(for: date)]?.goal ?? habit.dailyGoal
+    }
+
+    // Increment progress for a habit on a specific date (now with race protection)
+    func incrementProgress(for habit: Habit, on date: Date) {
+        let key = progressKey(for: habit, date: date)
+        guard !updatingProgressKeys.contains(key) else { return }
+        updatingProgressKeys.insert(key)
+        Task {
+            let day = calendar.startOfDay(for: date)
+            var progress = habitHistory[habit.id]?[day]?.progress ?? 0
+            let goal = habitHistory[habit.id]?[day]?.goal ?? habit.dailyGoal
             if progress < goal {
                 progress += 1
-                await upsertProgress(for: habit, progress: progress, goal: goal)
+                await upsertProgress(for: habit, progress: progress, goal: goal, date: day)
                 if progress == goal {
                     triggerConfetti(for: habit)
                     onHabitCompleted?()
                 }
             }
+            updatingProgressKeys.remove(key)
         }
     }
-    
-    func decrementProgress(for habit: Habit) {
+
+    // Decrement progress for a habit on a specific date (now with race protection)
+    func decrementProgress(for habit: Habit, on date: Date) {
+        let key = progressKey(for: habit, date: date)
+        guard !updatingProgressKeys.contains(key) else { return }
+        updatingProgressKeys.insert(key)
         Task {
-            var progress = habitProgress[habit.id]?.progress ?? 0
-            let goal = habitProgress[habit.id]?.goal ?? habit.dailyGoal
+            let day = calendar.startOfDay(for: date)
+            var progress = habitHistory[habit.id]?[day]?.progress ?? 0
+            let goal = habitHistory[habit.id]?[day]?.goal ?? habit.dailyGoal
             if progress > 0 {
                 progress -= 1
-                await upsertProgress(for: habit, progress: progress, goal: goal)
+                await upsertProgress(for: habit, progress: progress, goal: goal, date: day)
             }
+            updatingProgressKeys.remove(key)
         }
     }
     
     // MARK: - Data Loading
     private func loadInitialData() {
         Task {
-            await loadHabitsAndProgressForSelectedDate()
+            await loadHabitsAndProgressForVisibleDates()
         }
     }
     
@@ -84,54 +114,75 @@ final class HomeViewModel: ObservableObject {
         // Setup any observers if needed
     }
     
-    private func loadHabitsAndProgressForSelectedDate() {
-        Task { @MainActor in
+    private func loadHabitsAndProgressForVisibleDates() async {
+        await MainActor.run {
             self.isLoading = true
             self.errorMessage = nil
         }
-        Task {
-            do {
-                let fetchedHabits = try await habitService.fetchHabits()
-                await MainActor.run {
-                    self.habits = fetchedHabits
-                }
-                // Fetch progress for all habits for the selected date
-                var progressDict: [UUID: HabitProgress] = [:]
-                for habit in fetchedHabits {
-                    if let progress = try? await progressService.fetchProgress(userId: userId, habitId: habit.id, date: selectedDate) {
-                        progressDict[habit.id] = progress
+        do {
+            let fetchedHabits = try await habitService.fetchHabits()
+            await MainActor.run {
+                self.habits = fetchedHabits
+            }
+            // Fetch progress for all habits for the visible calendar range (-3...+3 days from today)
+            let today = calendar.startOfDay(for: Date())
+            let visibleDates = (-3...3).map { calendar.date(byAdding: .day, value: $0, to: today)! }
+            var mergedHabitHistory = self.habitHistory // Start with current history
+            for habit in fetchedHabits {
+                var dateDict = mergedHabitHistory[habit.id] ?? [:]
+                for date in visibleDates {
+                    let key = progressKey(for: habit, date: date)
+                    if let fetched = try? await progressService.fetchProgress(userId: userId, habitId: habit.id, date: date) {
+                        if let local = dateDict[date], dirtyProgressKeys.contains(key) {
+                            // If local is dirty, only overwrite if backend matches local
+                            if local.progress == fetched.progress && local.goal == fetched.goal {
+                                dirtyProgressKeys.remove(key)
+                                dateDict[date] = fetched
+                            }
+                            // else: keep local dirty value
+                        } else {
+                            dateDict[date] = fetched
+                        }
                     }
                 }
-                await MainActor.run {
-                    self.habitProgress = progressDict
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = "Failed to load habits or progress: \(error.localizedDescription)"
-                    self.isLoading = false
-                }
+                mergedHabitHistory[habit.id] = dateDict
+            }
+            await MainActor.run {
+                self.habitHistory = mergedHabitHistory
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to load habits or progress: \(error.localizedDescription)"
+                self.isLoading = false
             }
         }
     }
     
-    private func upsertProgress(for habit: Habit, progress: Int, goal: Int) async {
-        let progressId = habitProgress[habit.id]?.id ?? UUID()
+    private func upsertProgress(for habit: Habit, progress: Int, goal: Int, date: Date) async {
+        let progressId = habitHistory[habit.id]?[date]?.id ?? UUID()
         let now = Date()
         let progressRow = HabitProgress(
             id: progressId,
             userId: userId,
             habitId: habit.id,
-            date: selectedDate,
+            date: date,
             progress: progress,
             goal: goal,
-            createdAt: habitProgress[habit.id]?.createdAt ?? now,
+            createdAt: habitHistory[habit.id]?[date]?.createdAt ?? now,
             updatedAt: now
         )
+        let key = progressKey(for: habit, date: date)
+        dirtyProgressKeys.insert(key)
         do {
             try await progressService.upsertProgress(progress: progressRow)
             await MainActor.run {
+                // Update both habitProgress and habitHistory for the date
                 self.habitProgress[habit.id] = progressRow
+                if self.habitHistory[habit.id] == nil {
+                    self.habitHistory[habit.id] = [:]
+                }
+                self.habitHistory[habit.id]?[date] = progressRow
             }
         } catch {
             await MainActor.run {
@@ -178,7 +229,8 @@ final class HomeViewModel: ObservableObject {
 
     /// Check if a habit is completed for a given date
     func isHabitCompleted(_ habit: Habit, on date: Date) -> Bool {
-        if let progress = habitHistory[habit.id]?[date] {
+        let day = calendar.startOfDay(for: date)
+        if let progress = habitHistory[habit.id]?[day] {
             return progress.progress >= progress.goal
         }
         return false
@@ -188,5 +240,39 @@ final class HomeViewModel: ObservableObject {
     public func updateUserId(_ newUserId: UUID) {
         self.userId = newUserId
         loadInitialData()
+    }
+
+    /// Returns the list of habits that are active on a given date (startDate <= date <= endDate, and matches repeatFrequency/weekday if set)
+    func activeHabits(on date: Date) -> [Habit] {
+        habits.filter { habit in
+            let isAfterStart = calendar.startOfDay(for: date) >= calendar.startOfDay(for: habit.startDate)
+            let isBeforeEnd = habit.endDate == nil || calendar.startOfDay(for: date) <= calendar.startOfDay(for: habit.endDate!)
+            guard isAfterStart && isBeforeEnd else { return false }
+            switch habit.repeatFrequency.lowercased() {
+            case "daily":
+                return true
+            case "weekly":
+                // If weekdays is set, check if the date's weekday matches
+                if let weekdays = habit.weekdays {
+                    let weekday = calendar.component(.weekday, from: date) - 1 // 0=Sun, 6=Sat
+                    return weekdays.contains(weekday)
+                }
+                return true
+            case "custom":
+                if let weekdays = habit.weekdays {
+                    let weekday = calendar.component(.weekday, from: date) - 1
+                    return weekdays.contains(weekday)
+                }
+                return true
+            default:
+                return true
+            }
+        }
+    }
+
+    /// Returns the number of completed habits for a given date
+    func completedHabitsCount(on date: Date) -> Int {
+        let active = activeHabits(on: date)
+        return active.filter { isHabitCompleted($0, on: date) }.count
     }
 } 

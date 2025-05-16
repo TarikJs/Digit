@@ -9,6 +9,7 @@ struct HabitGoalCard: View {
     let goal: Int
     let onIncrement: () -> Void
     let onDecrement: () -> Void
+    let buttonsEnabled: Bool
 
     private var percent: Double {
         guard goal > 0 else { return 0.0 }
@@ -37,35 +38,41 @@ struct HabitGoalCard: View {
                 } else {
                     HStack(spacing: 8) {
                         Button(action: {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            if buttonsEnabled {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
                             onDecrement()
                         }) {
                             Image(systemName: "minus")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(Color.digitBrand)
+                                .foregroundStyle(buttonsEnabled ? Color.digitBrand : Color.digitGrayLight)
                                 .frame(width: 36, height: 36)
                                 .background(Color.digitBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.digitBrand, lineWidth: 1.5)
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(buttonsEnabled ? Color.digitBrand : Color.digitGrayLight, lineWidth: 1.5)
                                 )
                                 .shadow(color: Color.black.opacity(0.04), radius: 1, y: 1)
                         }
+                        .disabled(!buttonsEnabled)
                         Button(action: {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            if buttonsEnabled {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
                             onIncrement()
                         }) {
                             Image(systemName: "plus")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(Color.digitBrand)
+                                .foregroundStyle(buttonsEnabled ? Color.digitBrand : Color.digitGrayLight)
                                 .frame(width: 36, height: 36)
                                 .background(Color.digitBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.digitBrand, lineWidth: 1.5)
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(buttonsEnabled ? Color.digitBrand : Color.digitGrayLight, lineWidth: 1.5)
                                 )
                                 .shadow(color: Color.black.opacity(0.04), radius: 1, y: 1)
                         }
+                        .disabled(!buttonsEnabled)
                     }
                 }
             }
@@ -131,7 +138,8 @@ private struct CompletionRing: View {
         progress: 3,
         goal: 7,
         onIncrement: {},
-        onDecrement: {}
+        onDecrement: {},
+        buttonsEnabled: true
     )
     .padding()
     .background(Color.digitGrayLight)

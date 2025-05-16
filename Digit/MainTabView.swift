@@ -91,7 +91,12 @@ struct MainTabView: View {
                     }
                     .background(Color.digitBackground.ignoresSafeArea())
                     .sheet(isPresented: $showCalendarSheet) {
-                        CalenderProgressView()
+                        if let userIdString = authViewModel.currentUserProfile?.id,
+                           let userId = UUID(uuidString: userIdString) {
+                            CalenderProgressView(userId: userId)
+                        } else {
+                            Text("User not found")
+                        }
                     }
                     .sheet(isPresented: $showNewHabitSheet) {
                         NewHabitView(onDismiss: { showNewHabitSheet = false }, userId: authViewModel.currentUserProfile?.id ?? "", homeViewModel: homeViewModel)

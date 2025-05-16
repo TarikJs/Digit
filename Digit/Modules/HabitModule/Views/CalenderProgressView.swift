@@ -3,7 +3,7 @@ import SwiftUI
 struct CalenderProgressView: View {
     @StateObject private var viewModel: CalendarProgressViewModel
 
-    init(habitService: HabitServiceProtocol = HabitService(), progressService: HabitProgressServiceProtocol = HabitProgressService(), userId: UUID = UUID()) {
+    init(habitService: HabitServiceProtocol = HabitService(), progressService: HabitProgressServiceProtocol = HabitProgressService(), userId: UUID) {
         _viewModel = StateObject(wrappedValue: CalendarProgressViewModel(habitService: habitService, progressService: progressService, userId: userId))
     }
 
@@ -201,12 +201,12 @@ private struct HabitCalendarGrid: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
-    // Helper functions for grouping and labeling weeks (copy from previous extension, but for new model)
     private func groupDaysByWeekRightToLeft(_ days: [CalendarProgressViewModel.DayCompletion]) -> [[CalendarProgressViewModel.DayCompletion?]] {
         guard !days.isEmpty else { return [] }
         let calendar = Calendar.current
-        let sortedDays = days.sorted { $0.date > $1.date }
-        // Pad the start so the first day is always a Saturday (end of week)
+        // Sort days from oldest to newest (left to right)
+        let sortedDays = days.sorted { $0.date < $1.date }
+        // Pad the start so the first day is always a Sunday (start of week)
         var paddedDays: [CalendarProgressViewModel.DayCompletion?] = []
         let firstDay = sortedDays.first!.date
         let firstWeekday = calendar.component(.weekday, from: firstDay) // 1=Sunday
@@ -216,13 +216,13 @@ private struct HabitCalendarGrid: View {
         // Pad the end so the total count is a multiple of 7 (full weeks)
         let padEnd = (7 - (paddedDays.count % 7)) % 7
         for _ in 0..<padEnd { paddedDays.append(nil) }
-        // Group into weeks (right to left)
+        // Group into weeks (left to right)
         var weeks: [[CalendarProgressViewModel.DayCompletion?]] = []
         for chunk in stride(from: 0, to: paddedDays.count, by: 7) {
             let week = Array(paddedDays[chunk..<min(chunk+7, paddedDays.count)])
             weeks.append(week)
         }
-        return weeks.reversed()
+        return weeks
     }
     private func monthLabelsForWeeksRightToLeft(_ weeks: [[CalendarProgressViewModel.DayCompletion?]]) -> [Int: String] {
         var result: [Int: String] = [:]
@@ -299,6 +299,6 @@ private struct HabitGridLegend: View {
 
 #if DEBUG
 #Preview {
-    CalenderProgressView()
+    CalenderProgressView(userId: UUID())
 }
 #endif 

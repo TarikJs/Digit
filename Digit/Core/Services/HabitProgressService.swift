@@ -28,8 +28,23 @@ enum HabitProgressServiceError: Error, LocalizedError {
 final class HabitProgressService: HabitProgressServiceProtocol {
     init() {}
 
+    private func utcMidnight(for date: Date) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.startOfDay(for: date)
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        return df
+    }()
+
     func fetchProgress(userId: UUID, habitId: UUID, date: Date) async throws -> HabitProgress? {
-        let dateString = Self.dateFormatter.string(from: date)
+        let utcDate = utcMidnight(for: date)
+        let dateString = Self.dateFormatter.string(from: utcDate)
+        print("📱 [DEBUG] fetchProgress REQUEST: userId=\(userId.uuidString), habitId=\(habitId.uuidString), date=\(dateString)")
         let response = try await SupabaseManager.shared.client
             .from("habit_progress")
             .select()
@@ -39,53 +54,97 @@ final class HabitProgressService: HabitProgressServiceProtocol {
             .single()
             .execute()
         let data = response.data
+        print("🥣 [DEBUG] fetchProgress RAW RESPONSE: \(String(data: data, encoding: .utf8) ?? "<no data>")")
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(HabitProgress.self, from: data)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        decoder.dateDecodingStrategy = .formatted(dateFormatter)
+        do {
+            let progress = try decoder.decode(HabitProgress.self, from: data)
+            print("📱 [DEBUG] fetchProgress DECODED: \(progress)")
+            return progress
+        } catch {
+            print("📱 [DEBUG] fetchProgress DECODING ERROR: \(error)")
+            return nil
+        }
     }
 
     func upsertProgress(progress: HabitProgress) async throws {
         guard let session = SupabaseManager.shared.client.auth.currentSession else {
-            print("[DEBUG] Not authenticated: cannot upsert progress.")
+            print("📱 [DEBUG] Not authenticated: cannot upsert progress.")
             throw HabitProgressServiceError.notAuthenticated
         }
-        print("[DEBUG] Authenticated as user: \(session.user.id)")
-        print("[DEBUG] Progress userId: \(progress.userId)")
+        print("📱 [DEBUG] upsertProgress REQUEST: userId=\(progress.userId), habitId=\(progress.habitId), date=\(Self.dateFormatter.string(from: utcMidnight(for: progress.date))), progress=\(progress.progress), goal=\(progress.goal)")
+        let utcDate = utcMidnight(for: progress.date)
         let upsertRow = HabitProgressUpsert(
-            id: progress.id.uuidString,
-            user_id: progress.userId.uuidString,
-            habit_id: progress.habitId.uuidString,
-            date: Self.dateFormatter.string(from: progress.date),
+            id: progress.id,
+            user_id: progress.userId,
+            habit_id: progress.habitId,
+            date: Self.dateFormatter.string(from: utcDate),
             progress: progress.progress,
             goal: progress.goal
         )
-        _ = try await SupabaseManager.shared.client
-            .from("habit_progress")
-            .upsert(upsertRow, onConflict: "user_id,habit_id,date")
-            .execute()
+        print("📱 [DEBUG] upsertProgress UPSERT PAYLOAD: \(upsertRow)")
+        do {
+            let response = try await SupabaseManager.shared.client
+                .from("habit_progress")
+                .upsert(upsertRow, onConflict: "user_id,habit_id,date")
+                .execute()
+            let data = response.data
+            print("🥣 [DEBUG] upsertProgress RAW RESPONSE: \(String(data: data, encoding: .utf8) ?? "<no data>")")
+        } catch {
+            print("📱 [DEBUG] upsertProgress ERROR: \(error)")
+            throw error
+        }
     }
 
     func fetchProgressForRange(userId: UUID, habitId: UUID, startDate: Date, endDate: Date) async throws -> [HabitProgress] {
-        let start = Self.dateFormatter.string(from: startDate)
-        let end = Self.dateFormatter.string(from: endDate)
-        let response = try await SupabaseManager.shared.client
-            .from("habit_progress")
-            .select()
-            .eq("user_id", value: userId.uuidString)
-            .eq("habit_id", value: habitId.uuidString)
-            .gte("date", value: start)
-            .lte("date", value: end)
-            .execute()
-        let data = response.data
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode([HabitProgress].self, from: data)) ?? []
+        let utcStart = utcMidnight(for: startDate)
+        let utcEnd = utcMidnight(for: endDate)
+        let start = Self.dateFormatter.string(from: utcStart)
+        let end = Self.dateFormatter.string(from: utcEnd)
+        print("📱 [DEBUG] fetchProgressForRange REQUEST: userId=\(userId.uuidString), habitId=\(habitId.uuidString), start=\(start), end=\(end)")
+        do {
+            let response =
+                start == end ?
+                    try await SupabaseManager.shared.client
+                        .from("habit_progress")
+                        .select()
+                        .eq("user_id", value: userId.uuidString)
+                        .eq("habit_id", value: habitId.uuidString)
+                        .eq("date", value: start)
+                        .execute()
+                :
+                    try await SupabaseManager.shared.client
+                        .from("habit_progress")
+                        .select()
+                        .eq("user_id", value: userId.uuidString)
+                        .eq("habit_id", value: habitId.uuidString)
+                        .gte("date", value: start)
+                        .lte("date", value: end)
+                        .execute()
+            let data = response.data
+            print("🥣 [DEBUG] fetchProgressForRange RAW RESPONSE: \(String(data: data, encoding: .utf8) ?? "<no data>")")
+            let decoder = JSONDecoder()
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            decoder.dateDecodingStrategy = .formatted(dateFormatter)
+            do {
+                let progressList = try decoder.decode([HabitProgress].self, from: data)
+                print("📱✅ [DEBUG] fetchProgressForRange DECODED: count=\(progressList.count)")
+                for progress in progressList {
+                    print("📱 [DEBUG] fetchProgressForRange ITEM: \(progress)")
+                }
+                return progressList
+            } catch {
+                print("📱❌ [DEBUG] fetchProgressForRange DECODING ERROR: \(error)")
+                return []
+            }
+        } catch {
+            print("📱❌ [DEBUG] fetchProgressForRange ERROR: \(error)")
+            throw error
+        }
     }
-
-    private static let dateFormatter: DateFormatter = {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        return df
-    }()
 } 

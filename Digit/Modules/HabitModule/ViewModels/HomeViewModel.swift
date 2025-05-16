@@ -13,7 +13,7 @@ final class HomeViewModel: ObservableObject {
     @Published var confettiHabitID: UUID?
     @Published var confettiDate: String?
     var onHabitCompleted: (() -> Void)?
-    @Published var habitHistory: [UUID: [Date: HabitProgress]] = [:] // habitId -> (date -> progress)
+    @Published var habitHistory: [UUID: [String: HabitProgress]] = [:] // habitId -> (dateString -> progress)
     
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -25,10 +25,16 @@ final class HomeViewModel: ObservableObject {
     private var updatingProgressKeys = Set<String>()
     // Track which (habit, date) pairs have local updates not yet confirmed by backend
     private var dirtyProgressKeys = Set<String>()
+    // Use UTC calendar for all progress keying and lookups
+    private let utcCalendar: Calendar = {
+        var cal = Calendar.current
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        return cal
+    }()
     
     // Helper to create a unique key for a habit/date pair
     private func progressKey(for habit: Habit, date: Date) -> String {
-        "\(habit.id.uuidString)-\(calendar.startOfDay(for: date).timeIntervalSince1970)"
+        "\(habit.id.uuidString)-\(utcCalendar.startOfDay(for: date).timeIntervalSince1970)"
     }
 
     // Expose to UI: is a habit/date currently updating?
@@ -57,12 +63,30 @@ final class HomeViewModel: ObservableObject {
     
     // Returns the progress for a given habit on a specific date
     func progress(for habit: Habit, on date: Date) -> Int {
-        habitHistory[habit.id]?[calendar.startOfDay(for: date)]?.progress ?? 0
+        let key = dateKey(for: date)
+        let keys = habitHistory[habit.id]?.keys.map { $0 } ?? []
+        print("[DEBUG] progress(for: \(habit.name), on: \(key)) -- available keys: \(keys)")
+        if let value = habitHistory[habit.id]?[key]?.progress {
+            print("[DEBUG] Found progress for key \(key): \(value)")
+            return value
+        } else {
+            print("[DEBUG] No progress found for key \(key)")
+            return 0
+        }
     }
 
     // Returns the goal for a given habit on a specific date
     func goal(for habit: Habit, on date: Date) -> Int {
-        habitHistory[habit.id]?[calendar.startOfDay(for: date)]?.goal ?? habit.dailyGoal
+        let key = dateKey(for: date)
+        let keys = habitHistory[habit.id]?.keys.map { $0 } ?? []
+        print("[DEBUG] goal(for: \(habit.name), on: \(key)) -- available keys: \(keys)")
+        if let value = habitHistory[habit.id]?[key]?.goal {
+            print("[DEBUG] Found goal for key \(key): \(value)")
+            return value
+        } else {
+            print("[DEBUG] No goal found for key \(key)")
+            return habit.dailyGoal
+        }
     }
 
     // Increment progress for a habit on a specific date (now with race protection)
@@ -71,15 +95,37 @@ final class HomeViewModel: ObservableObject {
         guard !updatingProgressKeys.contains(key) else { return }
         updatingProgressKeys.insert(key)
         Task {
-            let day = calendar.startOfDay(for: date)
-            var progress = habitHistory[habit.id]?[day]?.progress ?? 0
-            let goal = habitHistory[habit.id]?[day]?.goal ?? habit.dailyGoal
+            let day = utcCalendar.startOfDay(for: date)
+            let dateKeyString = dateKey(for: day)
+            var progress = habitHistory[habit.id]?[dateKeyString]?.progress ?? 0
+            let goal = habitHistory[habit.id]?[dateKeyString]?.goal ?? habit.dailyGoal
+            print("[DEBUG] Before increment: progress=\(progress), goal=\(goal)")
             if progress < goal {
                 progress += 1
                 await upsertProgress(for: habit, progress: progress, goal: goal, date: day)
-                if progress == goal {
-                    triggerConfetti(for: habit)
-                    onHabitCompleted?()
+                await MainActor.run {
+                    if self.habitHistory[habit.id] == nil { self.habitHistory[habit.id] = [:] }
+                    if self.habitHistory[habit.id]?[dateKeyString] == nil {
+                        // If no row exists, create a new HabitProgress for this day
+                        let now = Date()
+                        self.habitHistory[habit.id]?[dateKeyString] = HabitProgress(
+                            id: UUID().uuidString,
+                            userId: self.userId.uuidString,
+                            habitId: habit.id.uuidString,
+                            date: day,
+                            progress: progress,
+                            goal: goal,
+                            createdAt: now,
+                            updatedAt: now
+                        )
+                    } else {
+                        self.habitHistory[habit.id]?[dateKeyString]?.progress = progress
+                    }
+                    print("[DEBUG] After upsert (in-memory, no fetch): progress=\(progress), goal=\(goal)")
+                    if progress == goal {
+                        triggerConfetti(for: habit)
+                        onHabitCompleted?()
+                    }
                 }
             }
             updatingProgressKeys.remove(key)
@@ -92,9 +138,9 @@ final class HomeViewModel: ObservableObject {
         guard !updatingProgressKeys.contains(key) else { return }
         updatingProgressKeys.insert(key)
         Task {
-            let day = calendar.startOfDay(for: date)
-            var progress = habitHistory[habit.id]?[day]?.progress ?? 0
-            let goal = habitHistory[habit.id]?[day]?.goal ?? habit.dailyGoal
+            let day = utcCalendar.startOfDay(for: date)
+            var progress = habitHistory[habit.id]?[key]?.progress ?? 0
+            let goal = habitHistory[habit.id]?[key]?.goal ?? habit.dailyGoal
             if progress > 0 {
                 progress -= 1
                 await upsertProgress(for: habit, progress: progress, goal: goal, date: day)
@@ -124,25 +170,27 @@ final class HomeViewModel: ObservableObject {
             await MainActor.run {
                 self.habits = fetchedHabits
             }
-            // Fetch progress for all habits for the visible calendar range (-3...+3 days from today)
-            let today = calendar.startOfDay(for: Date())
-            let visibleDates = (-3...3).map { calendar.date(byAdding: .day, value: $0, to: today)! }
-            var mergedHabitHistory = self.habitHistory // Start with current history
+            let today = utcCalendar.startOfDay(for: Date())
+            let startOfRange = utcCalendar.date(byAdding: .day, value: -89, to: today) ?? today
+            var mergedHabitHistory = self.habitHistory
             for habit in fetchedHabits {
+                let progressList = try await progressService.fetchProgressForRange(
+                    userId: userId,
+                    habitId: habit.id,
+                    startDate: startOfRange,
+                    endDate: today
+                )
+                let loadedKeys = progressList.map { dateKey(for: $0.date) }
+                print("[DEBUG] Loaded progress keys from Supabase for habit \(habit.name): \(loadedKeys)")
                 var dateDict = mergedHabitHistory[habit.id] ?? [:]
-                for date in visibleDates {
-                    let key = progressKey(for: habit, date: date)
-                    if let fetched = try? await progressService.fetchProgress(userId: userId, habitId: habit.id, date: date) {
-                        if let local = dateDict[date], dirtyProgressKeys.contains(key) {
-                            // If local is dirty, only overwrite if backend matches local
-                            if local.progress == fetched.progress && local.goal == fetched.goal {
-                                dirtyProgressKeys.remove(key)
-                                dateDict[date] = fetched
-                            }
-                            // else: keep local dirty value
-                        } else {
-                            dateDict[date] = fetched
+                for progress in progressList {
+                    let key = dateKey(for: progress.date)
+                    if let local = dateDict[key], dirtyProgressKeys.contains(progressKey(for: habit, date: progress.date)) {
+                        if local.progress == progress.progress && local.goal == progress.goal {
+                            dirtyProgressKeys.remove(progressKey(for: habit, date: progress.date))
                         }
+                    } else {
+                        dateDict[key] = progress
                     }
                 }
                 mergedHabitHistory[habit.id] = dateDict
@@ -160,29 +208,31 @@ final class HomeViewModel: ObservableObject {
     }
     
     private func upsertProgress(for habit: Habit, progress: Int, goal: Int, date: Date) async {
-        let progressId = habitHistory[habit.id]?[date]?.id ?? UUID()
+        print("[DEBUG] Upserting progress: habit=\(habit.name), date=\(date), progress=\(progress), goal=\(goal)")
+        let key = dateKey(for: date)
+        let progressId = habitHistory[habit.id]?[key]?.id ?? UUID().uuidString
         let now = Date()
         let progressRow = HabitProgress(
             id: progressId,
-            userId: userId,
-            habitId: habit.id,
+            userId: userId.uuidString,
+            habitId: habit.id.uuidString,
             date: date,
             progress: progress,
             goal: goal,
-            createdAt: habitHistory[habit.id]?[date]?.createdAt ?? now,
+            createdAt: habitHistory[habit.id]?[key]?.createdAt ?? now,
             updatedAt: now
         )
-        let key = progressKey(for: habit, date: date)
-        dirtyProgressKeys.insert(key)
+        dirtyProgressKeys.insert(progressKey(for: habit, date: date))
         do {
             try await progressService.upsertProgress(progress: progressRow)
+            print("[DEBUG] Upserted progress for habit=\(habit.name), date=\(date), progress=\(progress), goal=\(goal)")
             await MainActor.run {
-                // Update both habitProgress and habitHistory for the date
                 self.habitProgress[habit.id] = progressRow
                 if self.habitHistory[habit.id] == nil {
                     self.habitHistory[habit.id] = [:]
                 }
-                self.habitHistory[habit.id]?[date] = progressRow
+                self.habitHistory[habit.id]?[key] = progressRow
+                print("[DEBUG] After upsert (in-memory): progress=\(progressRow.progress), goal=\(progressRow.goal)")
             }
         } catch {
             await MainActor.run {
@@ -213,9 +263,10 @@ final class HomeViewModel: ObservableObject {
     func fetchProgressHistory(for habit: Habit, startDate: Date, endDate: Date) async {
         do {
             let progressList = try await progressService.fetchProgressForRange(userId: userId, habitId: habit.id, startDate: startDate, endDate: endDate)
-            var dateDict: [Date: HabitProgress] = [:]
+            var dateDict: [String: HabitProgress] = [:]
             for progress in progressList {
-                dateDict[progress.date] = progress
+                let key = dateKey(for: progress.date)
+                dateDict[key] = progress
             }
             await MainActor.run {
                 self.habitHistory[habit.id] = dateDict
@@ -229,8 +280,8 @@ final class HomeViewModel: ObservableObject {
 
     /// Check if a habit is completed for a given date
     func isHabitCompleted(_ habit: Habit, on date: Date) -> Bool {
-        let day = calendar.startOfDay(for: date)
-        if let progress = habitHistory[habit.id]?[day] {
+        let key = dateKey(for: date)
+        if let progress = habitHistory[habit.id]?[key] {
             return progress.progress >= progress.goal
         }
         return false
@@ -274,5 +325,12 @@ final class HomeViewModel: ObservableObject {
     func completedHabitsCount(on date: Date) -> Int {
         let active = activeHabits(on: date)
         return active.filter { isHabitCompleted($0, on: date) }.count
+    }
+
+    private func dateKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.string(from: utcCalendar.startOfDay(for: date))
     }
 } 

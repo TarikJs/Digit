@@ -1,45 +1,14 @@
 import SwiftUI
 
 struct CalenderProgressView: View {
-    // Mock data for demonstration
-    struct DayCompletion: Identifiable {
-        let id = UUID()
-        let date: Date
-        let completed: Int
-        let total: Int
-    }
-    struct HabitSummary: Identifiable {
-        let id = UUID()
-        let icon: String
-        let title: String
-        let days: [DayCompletion]
-    }
+    @StateObject private var viewModel: CalendarProgressViewModel
 
-    // Generate mock data for the last 3 months
-    private let habits: [HabitSummary] = CalenderProgressView.mockHabitsForLast3Months()
-
-    private let currentMonth: Date = Date()
-    private let previousMonth: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-    private let columns: [GridItem] = Array(repeating: .init(.flexible(minimum: 0, maximum: 28), spacing: 4), count: 7)
-
-    private let weekDayLabels: [String] = ["M", "T", "W", "T", "F", "S", "S"]
-
-    private func monthLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: date)
+    init(habitService: HabitServiceProtocol = HabitService(), progressService: HabitProgressServiceProtocol = HabitProgressService(), userId: UUID = UUID()) {
+        _viewModel = StateObject(wrappedValue: CalendarProgressViewModel(habitService: habitService, progressService: progressService, userId: userId))
     }
 
     var body: some View {
         NavigationView {
-            CalenderProgressContentView(habits: habits)
-                .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private struct CalenderProgressContentView: View {
-        let habits: [CalenderProgressView.HabitSummary]
-        var body: some View {
             VStack(spacing: 0) {
                 // Full-width brand header
                 VStack(alignment: .leading, spacing: 2) {
@@ -55,166 +24,35 @@ struct CalenderProgressView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.digitBrand.edgesIgnoringSafeArea(.top))
                 .padding(.bottom, 16)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(habits) { habit in
-                            HabitCalendarCard(habit: habit)
+                if viewModel.isLoading {
+                    ProgressView().padding()
+                } else if let error = viewModel.errorMessage {
+                    Text(error).foregroundColor(.red).padding()
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(viewModel.habits) { habit in
+                                HabitCalendarCard(habit: habit)
+                            }
                         }
                     }
-                }
-                .background(Color.digitBackground.ignoresSafeArea())
-            }
-        }
-    }
-}
-
-extension CalenderProgressView {
-    static func mockHabitsForLast3Months() -> [HabitSummary] {
-        let calendar = Calendar.current
-        let today = Date()
-        guard let startOf3Months = calendar.date(byAdding: .day, value: -90, to: today) else {
-            return []
-        }
-        let days = (0..<91).map { offset -> DayCompletion in
-            let date = calendar.date(byAdding: .day, value: offset, to: startOf3Months) ?? today
-            let total = Int.random(in: 1...5)
-            let completed = Int.random(in: 0...total)
-            return DayCompletion(date: date, completed: completed, total: total)
-        }
-        return [
-            HabitSummary(icon: "figure.walk", title: "Work out", days: days),
-            HabitSummary(icon: "bed.double.fill", title: "Wake up at 9:00", days: days.shuffled()),
-            HabitSummary(icon: "brain.head.profile", title: "Meditation 30 min", days: days.shuffled()),
-            HabitSummary(icon: "nosign", title: "No cigarettes", days: days.shuffled())
-        ]
-    }
-
-    // Group days into weeks for GitHub-style grid
-    static func groupDaysByWeek(_ days: [DayCompletion]) -> [[DayCompletion]] {
-        guard let first = days.first else { return [] }
-        let calendar = Calendar.current
-        let weekdayOfFirst = calendar.component(.weekday, from: first.date)
-        var weeks: [[DayCompletion]] = []
-        var currentWeek: [DayCompletion] = Array(repeating: DayCompletion(date: Date(), completed: 0, total: 0), count: weekdayOfFirst - 1)
-        for day in days {
-            if currentWeek.count == 7 {
-                weeks.append(currentWeek)
-                currentWeek = []
-            }
-            currentWeek.append(day)
-        }
-        if !currentWeek.isEmpty {
-            while currentWeek.count < 7 {
-                currentWeek.append(DayCompletion(date: Date(), completed: 0, total: 0))
-            }
-            weeks.append(currentWeek)
-        }
-        return weeks
-    }
-
-    // Returns a dictionary mapping week index to month label (e.g., [0: "Apr", 5: "May", ...])
-    static func monthLabelsForWeeks(_ weeks: [[DayCompletion]]) -> [Int: String] {
-        var result: [Int: String] = [:]
-        var lastMonth: Int? = nil
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        for (i, week) in weeks.enumerated() {
-            if let firstDay = week.first(where: { $0.total > 0 || $0.completed > 0 }) {
-                let month = Calendar.current.component(.month, from: firstDay.date)
-                if month != lastMonth {
-                    result[i] = formatter.string(from: firstDay.date)
-                    lastMonth = month
+                    .background(Color.digitBackground.ignoresSafeArea())
                 }
             }
+            .navigationBarTitleDisplayMode(.inline)
         }
-        return result
-    }
-
-    static func monthLabelsForWeeksFixed(_ weeks: [[DayCompletion]]) -> [Int: String] {
-        var result: [Int: String] = [:]
-        var lastMonth: Int? = nil
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        for (i, week) in weeks.enumerated() {
-            if let firstDay = week.first {
-                let month = Calendar.current.component(.month, from: firstDay.date)
-                if month != lastMonth {
-                    result[i] = formatter.string(from: firstDay.date)
-                    lastMonth = month
-                }
-            }
-        }
-        return result
-    }
-
-    // Group days into weeks for GitHub-style grid (right-to-left, bottom-to-top, Sunday start)
-    static func groupDaysByWeekRightToLeft(_ days: [DayCompletion]) -> [[DayCompletion?]] {
-        guard !days.isEmpty else { return [] }
-        let calendar = Calendar.current
-        // Sort days descending (most recent first)
-        let sortedDays = days.sorted { $0.date > $1.date }
-        var weeks: [[DayCompletion?]] = []
-        var currentWeek: [DayCompletion?] = []
-        let currentWeekday = calendar.component(.weekday, from: sortedDays.first!.date)
-        // GitHub grid: week starts on Sunday (1), ends on Saturday (7)
-        let firstWeekday = 1 // Sunday
-        // Pad the first week at the top if needed
-        let padCount = (currentWeekday - firstWeekday + 7) % 7
-        for _ in 0..<padCount { currentWeek.append(nil) }
-        for day in sortedDays {
-            currentWeek.append(day)
-            if currentWeek.count == 7 {
-                weeks.append(currentWeek)
-                currentWeek = []
-            }
-        }
-        if !currentWeek.isEmpty {
-            while currentWeek.count < 7 { currentWeek.append(nil) }
-            weeks.append(currentWeek)
-        }
-        // Reverse weeks to make the most recent week on the right
-        return weeks.reversed()
-    }
-
-    // Returns a dictionary mapping week index to month label (for right-to-left grid)
-    static func monthLabelsForWeeksRightToLeft(_ weeks: [[DayCompletion?]]) -> [Int: String] {
-        var result: [Int: String] = [:]
-        var lastMonth: Int? = nil
-        let formatter = DateFormatter()
-        formatter.dateFormat = "LLLL" // Full month name
-        for (i, week) in weeks.enumerated() {
-            // Find the first non-nil day in the week (bottom-most, i.e., most recent)
-            if let day = week.compactMap({ $0 }).last {
-                let month = Calendar.current.component(.month, from: day.date)
-                if month != lastMonth {
-                    let fullMonth = formatter.string(from: day.date)
-                    let firstLetter = fullMonth.prefix(1)
-                    result[i] = String(firstLetter)
-                    lastMonth = month
-                }
-            }
-        }
-        return result
     }
 }
 
 private struct HabitCalendarCard: View {
-    let habit: CalenderProgressView.HabitSummary
-    private let cardHeight: CGFloat = 280 // Increased card height for more grid padding
-    
+    let habit: CalendarProgressViewModel.HabitCalendarData
+    private let cardHeight: CGFloat = 280
     @State private var showInfoAlert = false
-    
     private var percentCompletedText: String {
-        let total = habit.days.reduce(0) { $0 + $1.total }
-        let completed = habit.days.reduce(0) { $0 + $1.completed }
-        guard total > 0 else { return "0% completed" }
-        let percent = Int(round(Double(completed) / Double(total) * 100))
-        return "\(percent)% completed"
+        "\(habit.percentCompleted)% completed"
     }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Title row with info button
             HStack(spacing: 8) {
                 Image(systemName: habit.icon)
                     .font(.system(size: 22, weight: .semibold))
@@ -236,12 +74,10 @@ private struct HabitCalendarCard: View {
             }
             .padding(.top, 20)
             .padding(.horizontal, 16)
-            // Divider below title
             Divider()
                 .background(Color.digitDivider)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-            // Center grid between dividers
             ZStack(alignment: .topLeading) {
                 HabitCalendarGrid(days: habit.days)
             }
@@ -249,12 +85,10 @@ private struct HabitCalendarCard: View {
             .padding(.top, 24)
             .padding(.bottom, 24)
             .frame(maxHeight: .infinity)
-            // Divider above key/percent
             Divider()
                 .background(Color.digitDivider)
                 .padding(.top, 16)
                 .padding(.horizontal, 16)
-            // Percent and key row
             HStack(alignment: .center) {
                 Text(percentCompletedText)
                     .font(.system(size: 14, weight: .bold))
@@ -287,22 +121,20 @@ private struct HabitCalendarCard: View {
 }
 
 private struct HabitCalendarGrid: View {
-    let days: [CalenderProgressView.DayCompletion]
-
+    let days: [CalendarProgressViewModel.DayCompletion]
     private var weekLabelWidth: CGFloat { 16 }
     private var minSquareSize: CGFloat { 13 }
     private var maxSquareSize: CGFloat { 22 }
     private var minGridSpacing: CGFloat { 4 }
     private var maxGridSpacing: CGFloat { 7 }
     private var verticalPadding: CGFloat { 32 }
-    private var weeks: [[CalenderProgressView.DayCompletion?]] {
-        CalenderProgressView.groupDaysByWeekRightToLeft(days)
+    private var weeks: [[CalendarProgressViewModel.DayCompletion?]] {
+        groupDaysByWeekRightToLeft(days)
     }
     private var monthLabels: [Int: String] {
-        CalenderProgressView.monthLabelsForWeeksRightToLeft(weeks)
+        monthLabelsForWeeksRightToLeft(weeks)
     }
     private var dayLabels: [String] { ["S", "M", "T", "W", "T", "F", "S"] }
-
     var body: some View {
         GeometryReader { geometry in
             let availableWidth = geometry.size.width - weekLabelWidth
@@ -318,9 +150,7 @@ private struct HabitCalendarGrid: View {
             let gridHeight = CGFloat(7) * squareSize + CGFloat(6) * gridSpacingH
             let horizontalPadding = max((availableWidth - gridWidth) / 2, 0)
             let verticalGridOffset = max((availableHeight - gridHeight) / 2, 0)
-
             VStack(alignment: .leading, spacing: 0) {
-                // Month labels (overlay, not in grid HStack)
                 HStack(alignment: .center, spacing: gridSpacingW) {
                     Spacer().frame(width: weekLabelWidth + horizontalPadding + 8)
                     ForEach(0..<weekCount, id: \ .self) { weekIdx in
@@ -337,9 +167,7 @@ private struct HabitCalendarGrid: View {
                     }
                 }
                 .padding(.bottom, 2)
-                // Grid with day labels
                 HStack(alignment: .top, spacing: 0) {
-                    // Day labels
                     VStack(spacing: gridSpacingH) {
                         ForEach(dayLabels, id: \ .self) { label in
                             Text(label)
@@ -348,8 +176,7 @@ private struct HabitCalendarGrid: View {
                                 .frame(width: weekLabelWidth, height: squareSize, alignment: .trailing)
                         }
                     }
-                    .padding(.leading, 8) // More left padding for labels
-                    // Grid
+                    .padding(.leading, 8)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .top, spacing: gridSpacingW) {
                             Spacer().frame(width: horizontalPadding)
@@ -374,21 +201,62 @@ private struct HabitCalendarGrid: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
+    // Helper functions for grouping and labeling weeks (copy from previous extension, but for new model)
+    private func groupDaysByWeekRightToLeft(_ days: [CalendarProgressViewModel.DayCompletion]) -> [[CalendarProgressViewModel.DayCompletion?]] {
+        guard !days.isEmpty else { return [] }
+        let calendar = Calendar.current
+        let sortedDays = days.sorted { $0.date > $1.date }
+        // Pad the start so the first day is always a Saturday (end of week)
+        var paddedDays: [CalendarProgressViewModel.DayCompletion?] = []
+        let firstDay = sortedDays.first!.date
+        let firstWeekday = calendar.component(.weekday, from: firstDay) // 1=Sunday
+        let padStart = (firstWeekday - 1 + 7) % 7
+        for _ in 0..<padStart { paddedDays.append(nil) }
+        paddedDays.append(contentsOf: sortedDays)
+        // Pad the end so the total count is a multiple of 7 (full weeks)
+        let padEnd = (7 - (paddedDays.count % 7)) % 7
+        for _ in 0..<padEnd { paddedDays.append(nil) }
+        // Group into weeks (right to left)
+        var weeks: [[CalendarProgressViewModel.DayCompletion?]] = []
+        for chunk in stride(from: 0, to: paddedDays.count, by: 7) {
+            let week = Array(paddedDays[chunk..<min(chunk+7, paddedDays.count)])
+            weeks.append(week)
+        }
+        return weeks.reversed()
+    }
+    private func monthLabelsForWeeksRightToLeft(_ weeks: [[CalendarProgressViewModel.DayCompletion?]]) -> [Int: String] {
+        var result: [Int: String] = [:]
+        var lastMonth: Int? = nil
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL"
+        for (i, week) in weeks.enumerated() {
+            if let day = week.compactMap({ $0 }).last {
+                let month = Calendar.current.component(.month, from: day.date)
+                if month != lastMonth {
+                    let fullMonth = formatter.string(from: day.date)
+                    let firstLetter = fullMonth.prefix(1)
+                    result[i] = String(firstLetter)
+                    lastMonth = month
+                }
+            }
+        }
+        return result
+    }
 }
 
 private struct HabitGridDaySquare: View {
-    let day: CalenderProgressView.DayCompletion
+    let day: CalendarProgressViewModel.DayCompletion
     let squareSize: CGFloat
-    
     var percent: Double {
-        guard day.total > 0 else { return 0.0 }
-        return Double(day.completed) / Double(day.total)
+        guard day.goal > 0, day.isActive else { return 0.0 }
+        return min(Double(day.progress) / Double(day.goal), 1.0)
     }
-    
     var color: Color {
-        HabitGridColorScale.color(for: percent)
+        if !day.isActive {
+            return Color.digitGrayLight.opacity(0.3)
+        }
+        return HabitGridColorScale.color(for: percent)
     }
-    
     var body: some View {
         RoundedRectangle(cornerRadius: 3)
             .fill(color)
@@ -398,10 +266,7 @@ private struct HabitGridDaySquare: View {
                     .stroke(Color.digitBrand.opacity(0.25), lineWidth: 1.5)
             )
             .contentShape(Rectangle())
-            .onTapGesture {
-                // TODO: Show tooltip with date and completion info
-            }
-            .accessibilityLabel("\(day.completed) of \(day.total) goals completed")
+            .accessibilityLabel("\(day.progress) of \(day.goal) goals completed")
     }
 }
 

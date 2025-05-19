@@ -522,6 +522,12 @@ struct ProfileEditView: View {
                             Text("Linked")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(Color.digitProgressGreen3)
+                                .frame(width: 60, alignment: .trailing)
+                        } else {
+                            Text("")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.clear)
+                                .frame(width: 60, alignment: .trailing)
                         }
                     }
                     .padding(.vertical, 12)
@@ -532,6 +538,10 @@ struct ProfileEditView: View {
                         Text("Google Account")
                             .font(.system(size: 17))
                         Spacer()
+                        Text("")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.clear)
+                            .frame(width: 60, alignment: .trailing)
                     }
                     .padding(.vertical, 12)
                     Divider().background(Color.digitDivider)
@@ -541,6 +551,10 @@ struct ProfileEditView: View {
                         Text("Email Address")
                             .font(.system(size: 17))
                         Spacer()
+                        Text("")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.clear)
+                            .frame(width: 60, alignment: .trailing)
                     }
                     .padding(.vertical, 12)
                 }

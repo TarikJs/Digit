@@ -10,7 +10,7 @@ struct MainTabView: View {
         progressService: HabitProgressService(),
         userId: UUID() // Temporary dummy value
     )
-    @State private var isLoading = true
+    @State private var isLoading: Bool
     @State private var showCalendarSheet = false
     @State private var confettiTrigger = 0
     @State private var showNewHabitSheet = false
@@ -19,6 +19,11 @@ struct MainTabView: View {
         profileService: SupabaseProfileService(),
         authService: SupabaseAuthService()
     )
+    
+    // Custom initializer for preview/test
+    init(isLoading: Bool = true) {
+        _isLoading = State(initialValue: isLoading)
+    }
     
     var headerName: String {
         let name: String
@@ -58,8 +63,18 @@ struct MainTabView: View {
                             .tag(0)
                             
                             NavigationView {
-                                StatsView()
-                                    .navigationBarHidden(true)
+                                StatsView(
+                                    habitService: HabitService(),
+                                    progressService: HabitProgressService(),
+                                    userId: {
+                                        if let idString = authViewModel.currentUserProfile?.id, let uuid = UUID(uuidString: idString) {
+                                            return uuid
+                                        } else {
+                                            return UUID()
+                                        }
+                                    }()
+                                )
+                                .navigationBarHidden(true)
                             }
                             .tabItem {
                                 Label("Stats", systemImage: "chart.bar.fill")
@@ -140,7 +155,7 @@ struct MainTabView: View {
 #if DEBUG
 #Preview {
     let mockAuthViewModel = AuthViewModel()
-    MainTabView()
+    MainTabView(isLoading: false)
         .environmentObject(AuthCoordinator(authViewModel: mockAuthViewModel))
         .environmentObject(mockAuthViewModel)
 }

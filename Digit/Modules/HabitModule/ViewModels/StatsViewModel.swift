@@ -1,9 +1,41 @@
 import SwiftUI
 
 final class StatsViewModel: ObservableObject {
+    // MARK: - Dependencies
+    private let habitService: HabitServiceProtocol
+    private let progressService: HabitProgressServiceProtocol
+    private let userId: UUID
+    
+    // MARK: - Published Properties
+    @Published var selectedPeriod: Period = .month {
+        didSet {
+            Task { await loadStats() }
+        }
+    }
+    @Published var barChartData: [DayStat] = []
+    @Published var perfectCount: Int = 0
+    @Published var partialCount: Int = 0
+    @Published var missedCount: Int = 0
+    @Published var summaryStats: [HabitStat] = []
+    @Published var calendarData: [HabitCalendarData] = []
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String? = nil
+    
+    // MARK: - Internal State
+    private var habits: [Habit] = []
+    
+    // MARK: - Init
+    init(habitService: HabitServiceProtocol, progressService: HabitProgressServiceProtocol, userId: UUID) {
+        self.habitService = habitService
+        self.progressService = progressService
+        self.userId = userId
+        Task { await loadStats() }
+    }
+    
     // MARK: - Period Enum
-    enum Period: CaseIterable, Equatable {
+    enum Period: CaseIterable, Equatable, Identifiable {
         case week, month, year
+        var id: Self { self }
         var title: String {
             switch self {
             case .week: return "7 days"
@@ -11,42 +43,148 @@ final class StatsViewModel: ObservableObject {
             case .year: return "1 year"
             }
         }
+        var days: Int {
+            switch self {
+            case .week: return 7
+            case .month: return 30
+            case .year: return 365
+            }
+        }
     }
     
-    // MARK: - Published Properties
-    @Published var selectedPeriod: Period = .month
-    @Published var chartData: [Int] = [1, 5, 7, 7, 6, 9, 8, 7, 10, 8, 7, 6, 5, 4, 6, 8, 7, 5, 4, 6, 7, 8, 7, 6, 5, 4, 5, 6, 7, 8]
-    @Published var summaryStats: [HabitStat] = [
-        .init(icon: "book.closed", title: "Read book", value: "70 pages", color: .digitHabitPurple),
-        .init(icon: "bed.double.fill", title: "Wake up at 9:00", value: "20 times", color: .digitHabitGreen),
-        .init(icon: "dumbbell", title: "Work out", value: "15 times", color: .digitHabitGreen),
-        .init(icon: "brain.head.profile", title: "Meditation 30 min", value: "8 times", color: .digitHabitPurple)
-    ]
-    
-    // For weekly grid
-    let weeklyHabits: [String] = [
-        "Run 25 min", "Read book", "Wake up at 9:00", "Work out", "Meditation 30 min", "Drink water", "No cigarettes"
-    ]
-    let weekDays: [String] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+    struct DayStat: Identifiable, Equatable {
+        let id = UUID()
+        let date: Date
+        let percent: Double // 0.0...1.0
+    }
+    struct HabitCalendarData: Identifiable {
+        let id: UUID
+        let icon: String
+        let title: String
+        let percentCompleted: Int
+        let days: [HabitCalendarDay]
+    }
+    struct HabitCalendarDay: Identifiable {
+        let id = UUID()
+        let date: Date
+        let progress: Int
+        let goal: Int
+        let isActive: Bool
+    }
     
     // MARK: - Period Title
     var periodTitle: String {
+        let now = Date()
+        let calendar = Calendar.current
         switch selectedPeriod {
         case .week:
-            return "5 - 11 Oct 2024"
+            let start = calendar.date(byAdding: .day, value: -6, to: now) ?? now
+            let formatter = DateFormatter()
+            formatter.dateFormat = "d MMM"
+            return "\(formatter.string(from: start)) - \(formatter.string(from: now))"
         case .month:
-            return "June 2024"
+            let formatter = DateFormatter()
+            formatter.dateFormat = "LLLL yyyy"
+            return formatter.string(from: now)
         case .year:
-            return "2024"
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy"
+            return formatter.string(from: now)
         }
     }
     
     // MARK: - Navigation
     func goToPreviousPeriod() {
-        // For demo, do nothing
+        // TODO: Implement period navigation if needed
     }
     func goToNextPeriod() {
-        // For demo, do nothing
+        // TODO: Implement period navigation if needed
+    }
+    
+    // MARK: - Data Loading
+    private func loadStats() async {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        do {
+            let habits = try await habitService.fetchHabits()
+            self.habits = habits
+            let now = Date()
+            let calendar = Calendar.current
+            let startDate = calendar.date(byAdding: .day, value: -(selectedPeriod.days - 1), to: now) ?? now
+            // For bar chart: aggregate completion per day across all habits
+            var dailyCompletion: [Date: Double] = [:]
+            // For summary row
+            var perfect = 0, partial = 0, missed = 0
+            // For summary cards
+            var summary: [HabitStat] = []
+            // For calendar cards
+            var calendarCards: [HabitCalendarData] = []
+            for habit in habits {
+                let habitId = habit.id
+                let progressList = try await progressService.fetchProgressForRange(userId: userId, habitId: habitId, startDate: startDate, endDate: now)
+                // For summary row
+                perfect += progressList.filter { $0.progress >= $0.goal && $0.goal > 0 }.count
+                partial += progressList.filter { $0.progress > 0 && $0.progress < $0.goal }.count
+                missed += progressList.filter { $0.progress == 0 }.count
+                // For summary cards
+                let completedCount = progressList.filter { $0.progress >= $0.goal && $0.goal > 0 }.count
+                summary.append(HabitStat(
+                    icon: habit.icon,
+                    title: habit.name,
+                    value: "\(completedCount) done",
+                    color: .digitHabitGreen
+                ))
+                // For bar chart: sum percent per day
+                for progress in progressList {
+                    let day = calendar.startOfDay(for: progress.date)
+                    let percent = progress.goal > 0 ? min(Double(progress.progress) / Double(progress.goal), 1.0) : 0.0
+                    dailyCompletion[day, default: 0.0] += percent
+                }
+                // For calendar cards: last 90 days
+                let calendarStart = calendar.date(byAdding: .day, value: -89, to: now) ?? now
+                let calendarProgress = try await progressService.fetchProgressForRange(userId: userId, habitId: habitId, startDate: calendarStart, endDate: now)
+                var days: [HabitCalendarDay] = []
+                for i in 0..<90 {
+                    let date = calendar.date(byAdding: .day, value: -i, to: now) ?? now
+                    if let progress = calendarProgress.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+                        days.append(HabitCalendarDay(date: date, progress: progress.progress, goal: progress.goal, isActive: true))
+                    } else {
+                        days.append(HabitCalendarDay(date: date, progress: 0, goal: habit.dailyGoal, isActive: true))
+                    }
+                }
+                let percentCompleted = Int((Double(days.filter { $0.progress >= $0.goal && $0.goal > 0 }.count) / 90.0) * 100)
+                calendarCards.append(HabitCalendarData(id: habit.id, icon: habit.icon, title: habit.name, percentCompleted: percentCompleted, days: days.reversed()))
+            }
+            // Normalize bar chart data: average percent per day
+            var barChart: [DayStat] = []
+            for i in 0..<selectedPeriod.days {
+                let day = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -(selectedPeriod.days - 1 - i), to: now) ?? now)
+                let value = dailyCompletion[day] ?? 0.0
+                barChart.append(DayStat(date: day, percent: value / Double(max(habits.count, 1))))
+            }
+            let barChartCopy = barChart
+            let perfectCopy = perfect
+            let partialCopy = partial
+            let missedCopy = missed
+            let summaryCopy = summary
+            let calendarCopy = calendarCards
+            await MainActor.run {
+                self.barChartData = barChartCopy
+                self.perfectCount = perfectCopy
+                self.partialCount = partialCopy
+                self.missedCount = missedCopy
+                self.summaryStats = summaryCopy
+                self.calendarData = calendarCopy
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
+            }
+        }
     }
 }
 

@@ -18,47 +18,14 @@ struct AuthProvidersView: View {
         .frame(width: 320)
         
         VStack(spacing: 12) {
-            // Continue with Email Button
-            Button(action: onEmailContinue) {
-                HStack {
-                    Image(systemName: "envelope")
-                        .font(.system(size: 20, weight: .medium))
-                    Text("Continue with Email")
-                        .font(.system(size: 20, weight: .medium))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(width: 320, height: 56)
-                .foregroundStyle(Color.digitBrand)
-                .background(Color.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.digitBrand, lineWidth: 1.7)
-                )
-                .cornerRadius(12)
-            }
-            .accessibilityLabel("Continue with Email")
-            .disabled(isLoading)
-            // Google Sign-In Button
-            Button(action: onGoogle) {
-                Image("GoogleLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 56)
-            }
-            .frame(width: 320)
-            .background(Color.white)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.digitBrand, lineWidth: 1.7)
-            )
-            .cornerRadius(12)
-            .accessibilityLabel("Sign in with Google")
-            .disabled(isLoading)
             // Apple Sign-In Button
             SignInWithAppleButton(
                 .continue,
                 onRequest: { _ in },
-                onCompletion: { _ in onApple() }
+                onCompletion: { _ in
+                    print("🍏 [DEBUG] SignInWithAppleButton tapped and onCompletion called")
+                    onApple()
+                }
             )
             .signInWithAppleButtonStyle(.black)
             .frame(width: 320, height: 56)

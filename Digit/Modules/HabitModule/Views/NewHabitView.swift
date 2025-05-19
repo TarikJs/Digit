@@ -13,10 +13,12 @@ struct NewHabitView: View {
     @StateObject private var habitViewModel: HabitViewModel
     @StateObject private var viewModel = NewHabitViewModel()
     let onDismiss: () -> Void
+    var hideCancelButton: Bool = false
 
-    init(onDismiss: @escaping () -> Void, userId: String, homeViewModel: HomeViewModel) {
+    init(onDismiss: @escaping () -> Void, userId: String, homeViewModel: HomeViewModel, hideCancelButton: Bool = false) {
         self.onDismiss = onDismiss
         self.homeViewModel = homeViewModel
+        self.hideCancelButton = hideCancelButton
         _habitViewModel = StateObject(wrappedValue: HabitViewModel(habitService: HabitService(), userId: userId))
     }
 
@@ -81,12 +83,14 @@ struct NewHabitView: View {
                 .font(.digitTitle2)
                 .foregroundStyle(Color.white)
             Spacer()
+            if !hideCancelButton {
             Button("Cancel") {
                 onDismiss()
             }
             .font(.digitBody)
             .foregroundStyle(Color.white)
             .accessibilityLabel("Cancel")
+            }
         }
         .padding(.vertical, 18)
         .padding(.horizontal, Self.horizontalPadding)

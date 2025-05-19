@@ -77,6 +77,7 @@ struct DigitApp: App {
                     print("[DEBUG] Received deep link: \(url)")
                     SupabaseManager.shared.client.auth.handle(url)
                 }
+                .preferredColorScheme(.light)
         }
     }
 }

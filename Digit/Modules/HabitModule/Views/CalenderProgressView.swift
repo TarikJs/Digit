@@ -9,6 +9,9 @@ struct CalenderProgressView: View {
 
     var body: some View {
         NavigationView {
+            ZStack {
+                Color.digitGrayLight
+                    .ignoresSafeArea()
             VStack(spacing: 0) {
                 // Full-width brand header
                 VStack(alignment: .leading, spacing: 2) {
@@ -36,7 +39,7 @@ struct CalenderProgressView: View {
                             }
                         }
                     }
-                    .background(Color.digitBackground.ignoresSafeArea())
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

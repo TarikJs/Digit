@@ -3,10 +3,15 @@ import SwiftUI
 struct OnboardingView: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var onboardingHomeViewModel = HomeViewModel(
+        habitService: HabitService(),
+        progressService: HabitProgressService(),
+        userId: UUID() // Replace with actual user ID if available
+    )
     
     var body: some View {
         ZStack {
-            Color.digitBackground
+            Color.digitGrayLight
                 .ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 32) {
@@ -18,7 +23,7 @@ struct OnboardingView: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(Color.brand)
+                        .foregroundStyle(Color.digitBrand)
                 }
                 .padding(.leading)
                 
@@ -28,7 +33,7 @@ struct OnboardingView: View {
                         // Title
                         Text(stepTitle)
                             .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(Color.brand)
+                            .foregroundStyle(Color.digitBrand)
                             .padding(.horizontal)
                         
                         // Step content
@@ -36,14 +41,16 @@ struct OnboardingView: View {
                             switch viewModel.currentStep {
                             case .name:
                                 nameStep
+                            case .userName:
+                                usernameStep
+                            case .email:
+                                emailStep
                             case .dateOfBirth:
                                 dateOfBirthStep
                             case .gender:
                                 genderStep
-                            case .habitGoal:
-                                habitGoalStep
-                            case .habitTime:
-                                habitTimeStep
+                            case .enableNotification:
+                                enableNotificationStep
                             }
                         }
                         .transition(.asymmetric(
@@ -53,21 +60,22 @@ struct OnboardingView: View {
                     }
                 }
                 
-                // Continue button
+                // Continue button (always shown)
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         viewModel.proceedToNextStep()
                     }
                 }) {
-                    Text(viewModel.currentStep == .habitTime ? "Get Started" : "Continue")
+                    Text(viewModel.currentStep == .enableNotification ? "Get Started" : "Continue")
                         .font(.system(size: 24))
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(viewModel.canProceedToNextStep ? Color.brand : Color.brand.opacity(0.5))
-                        .foregroundStyle(.white)
+                        .background(Color.digitBrand)
+                        .foregroundStyle(Color.white)
                         .cornerRadius(12)
                 }
-                .disabled(!viewModel.canProceedToNextStep)
+                .opacity(viewModel.canProceedToNextStep && !viewModel.isCheckingUserName ? 1.0 : 0.5)
+                .disabled(!viewModel.canProceedToNextStep || viewModel.isCheckingUserName)
                 .padding()
             }
         }
@@ -78,14 +86,16 @@ struct OnboardingView: View {
         switch viewModel.currentStep {
         case .name:
             return "What's your name?"
+        case .userName:
+            return "Choose a username"
+        case .email:
+            return "What's your email?"
         case .dateOfBirth:
             return "When's your birthday?"
         case .gender:
             return "What are your pronouns?"
-        case .habitGoal:
-            return "What's your main goal?"
-        case .habitTime:
-            return "When do you prefer to build habits?"
+        case .enableNotification:
+            return "Enable notifications?"
         }
     }
     
@@ -107,15 +117,15 @@ struct OnboardingView: View {
                         .font(.system(size: 24))
                         .placeholder(when: viewModel.firstName.isEmpty) {
                             Text("Your first name")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondary)
                         }
                         .padding()
                         .frame(height: 56)
-                        .background(.white)
+                        .background(Color(UIColor.secondarySystemBackground))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.brand, lineWidth: 1.7)
+                                .stroke(Color.digitBrand, lineWidth: 1.7)
                         )
                 }
                 
@@ -129,15 +139,15 @@ struct OnboardingView: View {
                         .font(.system(size: 24))
                         .placeholder(when: viewModel.lastName.isEmpty) {
                             Text("Your last name")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondary)
                         }
                         .padding()
                         .frame(height: 56)
-                        .background(.white)
+                        .background(Color(UIColor.secondarySystemBackground))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.brand, lineWidth: 1.7)
+                                .stroke(Color.digitBrand, lineWidth: 1.7)
                         )
                 }
             }
@@ -147,6 +157,91 @@ struct OnboardingView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)
+        }
+    }
+    
+    private var usernameStep: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Pick a unique username. This will be visible to others.")
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Username")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                TextField("", text: $viewModel.userName)
+                    .font(.system(size: 24))
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .foregroundColor(.primary)
+                    .placeholder(when: viewModel.userName.isEmpty) {
+                        Text("your_username").foregroundStyle(Color.secondary)
+                    }
+                    .padding()
+                    .frame(height: 56)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.digitBrand, lineWidth: 1.7)
+                    )
+            }
+            .padding(.horizontal)
+            if viewModel.isCheckingUserName {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Checking username...")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+            }
+            if let error = viewModel.errorMessage, !error.isEmpty {
+                Text(error)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+            } else if !viewModel.isUserNameValid && !viewModel.userName.isEmpty {
+                Text("Usernames must be at least 3 characters, only letters, numbers, and underscores.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+            }
+        }
+    }
+    
+    private var emailStep: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("We'll use your email only to notify you about important changes to the app, such as policy updates. We will never use it for marketing or spam.")
+                .font(.system(size: 16))
+                .foregroundStyle(Color.secondary)
+                .padding(.horizontal)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Email")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                TextField("", text: $viewModel.email)
+                    .font(.system(size: 20))
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .foregroundColor(.primary)
+                    .placeholder(when: viewModel.email.isEmpty) {
+                        Text("you@email.com")
+                            .foregroundStyle(Color.secondary)
+                    }
+                    .padding()
+                    .frame(height: 56)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.digitBrand, lineWidth: 1.7)
+                    )
+            }
+            .padding(.horizontal)
         }
     }
     
@@ -165,11 +260,11 @@ struct OnboardingView: View {
             )
             .datePickerStyle(.wheel)
             .padding()
-            .background(.white)
+            .background(Color(UIColor.secondarySystemBackground))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.brand, lineWidth: 1.7)
+                    .stroke(Color.digitBrand, lineWidth: 1.7)
             )
             .padding(.horizontal)
         }
@@ -195,16 +290,16 @@ struct OnboardingView: View {
                         if viewModel.selectedGender == gender {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(Color.brand)
+                                .foregroundStyle(Color.digitBrand)
                         }
                     }
                     .padding()
                     .frame(height: 56)
-                    .background(.white)
+                    .background(Color(UIColor.secondarySystemBackground))
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.brand, lineWidth: 1.7)
+                            .stroke(Color.digitBrand, lineWidth: 1.7)
                     )
                 }
                 .buttonStyle(.plain)
@@ -213,72 +308,18 @@ struct OnboardingView: View {
         }
     }
     
-    private var habitGoalStep: some View {
+    private var enableNotificationStep: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("This will help us personalize your habit-building experience.")
+            Text("Stay on track by enabling reminders and notifications.")
                 .font(.system(size: 16))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 .padding(.horizontal)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("", text: $viewModel.habitGoal)
-                    .font(.system(size: 24))
-                    .placeholder(when: viewModel.habitGoal.isEmpty) {
-                        Text("e.g., Exercise more regularly")
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .frame(height: 56)
-                    .background(.white)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.brand, lineWidth: 1.7)
-                    )
+            Toggle(isOn: $viewModel.notificationsEnabled) {
+                Text("Enable notifications")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.primary)
             }
-            .padding(.horizontal)
-            
-            Text("You can always add more goals later.")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-        }
-    }
-    
-    private var habitTimeStep: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Choose when you're most likely to stick to your habits.")
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-            
-            ForEach(PreferredHabitTime.allCases, id: \.self) { time in
-                Button(action: {
-                    withAnimation {
-                        viewModel.selectedHabitTime = time
-                    }
-                }) {
-                    HStack {
-                        Text(time.rawValue)
-                            .font(.system(size: 24))
-                        Spacer()
-                        if viewModel.selectedHabitTime == time {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundStyle(Color.brand)
-                        }
-                    }
-                    .padding()
-                    .frame(height: 56)
-                    .background(.white)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.brand, lineWidth: 1.7)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
+            .toggleStyle(SwitchToggleStyle(tint: Color.digitBrand))
             .padding(.horizontal)
         }
     }

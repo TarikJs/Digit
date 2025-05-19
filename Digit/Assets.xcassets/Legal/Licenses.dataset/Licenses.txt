@@ -1,0 +1,11 @@
+Digit App Licenses
+
+Effective Date: May 16, 2024
+
+All original content, code, and design in the Digit app are © Digit. All rights reserved.
+
+The Digit app may include third-party libraries or assets, which are used under their respective open source or commercial licenses. Below is a list of third-party libraries and their licenses (if applicable):
+
+- [List any open source libraries here, e.g., Alamofire, SwiftUIX, etc.]
+
+If you have questions about licensing or wish to request a copy of any open source license, please use the in-app support or help section. 

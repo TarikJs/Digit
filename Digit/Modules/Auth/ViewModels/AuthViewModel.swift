@@ -88,13 +88,15 @@ final class AuthViewModel: ObservableObject {
     }
     
     func continueWithApple() {
+        print("🍏 [DEBUG] continueWithApple() called")
         isLoading = true
         errorMessage = nil
         AppleSignInCoordinator.shared.signIn { [weak self] result in
+            print("🍏 [DEBUG] AppleSignInCoordinator completion handler called")
             Task { @MainActor in
                 switch result {
                 case .success(let idToken):
-                    print("Apple ID Token: \(idToken)") // Debug print
+                    print("🍏 [DEBUG] Apple ID Token received: \(idToken.prefix(12))...")
                     do {
                         let credentials = OpenIDConnectCredentials(
                             provider: .apple,
@@ -102,15 +104,15 @@ final class AuthViewModel: ObservableObject {
                             nonce: nil
                         )
                         let session = try await SupabaseManager.shared.client.auth.signInWithIdToken(credentials: credentials)
-                        print("Supabase session: \(session)") // Debug print
+                        print("🍏 [DEBUG] Supabase session: \(session)")
                         await self?.handlePostSignIn()
                     } catch {
-                        print("Supabase sign-in error: \(error)") // Debug print
+                        print("🍏 [DEBUG] Supabase sign-in error: \(error)")
                         self?.errorMessage = error.localizedDescription
                         self?.isLoading = false
                     }
                 case .failure(let error):
-                    print("Apple Sign In Error: \(error)") // Debug print
+                    print("🍏 [DEBUG] Apple Sign In Error: \(error)")
                     self?.errorMessage = error.localizedDescription
                     self?.isLoading = false
                 }
@@ -226,6 +228,7 @@ struct UserProfile: Codable {
     let email: String
     let first_name: String
     let last_name: String
+    let user_name: String?
     let date_of_birth: String
     let gender: String
     let created_at: String?

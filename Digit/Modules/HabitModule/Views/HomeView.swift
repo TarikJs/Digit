@@ -75,6 +75,8 @@ struct HomeView: View {
                 
                 // Gray section starts immediately after divider
                 ZStack(alignment: .top) {
+                    Color.digitGrayLight
+                        .ignoresSafeArea()
                     // Sticky header
                     Color.digitBrand
                         .frame(height: 48)

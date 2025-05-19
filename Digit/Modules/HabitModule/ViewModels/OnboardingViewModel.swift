@@ -3,10 +3,11 @@ import Supabase
 
 enum OnboardingStep {
     case name
-    case dateOfBirth
+    case userName
+    case email
     case gender
-    case habitGoal
-    case habitTime
+    case dateOfBirth
+    case enableNotification
 }
 
 enum Gender: String, CaseIterable {
@@ -23,11 +24,14 @@ final class OnboardingViewModel: ObservableObject {
     @Published var currentStep: OnboardingStep = .name
     @Published var firstName: String = ""
     @Published var lastName: String = ""
+    @Published var email: String = ""
     @Published var dateOfBirth: Date = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     @Published var selectedGender: Gender?
     @Published var habitGoal: String = ""
-    @Published var selectedHabitTime: PreferredHabitTime?
+    @Published var notificationsEnabled: Bool = false
     @Published var errorMessage: String?
+    @Published var userName: String = ""
+    @Published var isCheckingUserName = false
     
     private let minimumAge = 18
     private let maximumAge = 100
@@ -62,18 +66,30 @@ final class OnboardingViewModel: ObservableObject {
         return minDate...maxDate
     }
     
+    var isEmailValid: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.contains("@") && trimmed.contains(".") && trimmed.count >= 5
+    }
+    
+    var isUserNameValid: Bool {
+        let trimmed = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count >= 3 && trimmed.range(of: "^[A-Za-z0-9_]+$", options: .regularExpression) != nil
+    }
+    
     var canProceedToNextStep: Bool {
         switch currentStep {
         case .name:
             return isNameValid
+        case .userName:
+            return isUserNameValid
+        case .email:
+            return isEmailValid
         case .dateOfBirth:
             return isDateOfBirthValid
         case .gender:
             return selectedGender != nil
-        case .habitGoal:
-            return isHabitGoalValid
-        case .habitTime:
-            return selectedHabitTime != nil
+        case .enableNotification:
+            return true
         }
     }
     
@@ -89,14 +105,18 @@ final class OnboardingViewModel: ObservableObject {
     func proceedToNextStep() {
         switch currentStep {
         case .name:
-            currentStep = .dateOfBirth
-        case .dateOfBirth:
+            currentStep = .userName
+        case .userName:
+            Task {
+                await checkBlockedUserNameAndProceed()
+            }
+        case .email:
             currentStep = .gender
         case .gender:
-            currentStep = .habitGoal
-        case .habitGoal:
-            currentStep = .habitTime
-        case .habitTime:
+            currentStep = .dateOfBirth
+        case .dateOfBirth:
+            currentStep = .enableNotification
+        case .enableNotification:
             Task {
                 await saveProfileAndComplete()
             }
@@ -109,6 +129,7 @@ final class OnboardingViewModel: ObservableObject {
         let email: String
         let first_name: String
         let last_name: String
+        let user_name: String?
         let date_of_birth: String
         let gender: String
         let created_at: String?
@@ -121,16 +142,22 @@ final class OnboardingViewModel: ObservableObject {
     
     private func saveProfileAndComplete() async {
         do {
-            let session = try await SupabaseManager.shared.client.auth.session
-            let userId = session.user.id.uuidString
-            let email = session.user.email
-            
-            // Require a valid, non-empty email
-            guard let email = email, !email.isEmpty else {
+            // Check for valid Supabase Auth session and user
+            guard let session = try? await SupabaseManager.shared.client.auth.session,
+                  !session.user.id.uuidString.isEmpty else {
                 await MainActor.run {
-                    self.errorMessage = "We couldn't retrieve your email. Please try signing in again."
+                    self.errorMessage = "Authentication failed. Please try signing in again."
                 }
-                onDismiss() // Send user back to login if email is missing
+                return
+            }
+            let userId = session.user.id.uuidString
+            // Use the email provided by the user during onboarding
+            let email = self.email.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Require a valid, non-empty email from onboarding
+            guard !email.isEmpty else {
+                await MainActor.run {
+                    self.errorMessage = "Please enter a valid email address to continue."
+                }
                 return
             }
             
@@ -154,6 +181,7 @@ final class OnboardingViewModel: ObservableObject {
                 email: email.lowercased(), // Ensure email is lowercase for consistency
                 first_name: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
                 last_name: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                user_name: userName.trimmingCharacters(in: .whitespacesAndNewlines),
                 date_of_birth: dateFormatter.string(from: dateOfBirth),
                 gender: gender.rawValue,
                 created_at: dateFormatter.string(from: Date())
@@ -205,14 +233,49 @@ final class OnboardingViewModel: ObservableObject {
         switch currentStep {
         case .name:
             onDismiss()
-        case .dateOfBirth:
+        case .userName:
+            currentStep = .name
+        case .email:
             currentStep = .name
         case .gender:
-            currentStep = .dateOfBirth
-        case .habitGoal:
+            currentStep = .email
+        case .dateOfBirth:
             currentStep = .gender
-        case .habitTime:
-            currentStep = .habitGoal
+        case .enableNotification:
+            currentStep = .dateOfBirth
+        }
+    }
+    
+    private struct BlockedUserName: Decodable {
+        let user_name: String
+    }
+
+    private func checkBlockedUserNameAndProceed() async {
+        await MainActor.run { isCheckingUserName = true; errorMessage = nil }
+        let trimmed = userName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        do {
+            let response = try await SupabaseManager.shared.client
+                .from("blocked_usernames")
+                .select("user_name")
+                .ilike("user_name", pattern: trimmed)
+                .limit(1)
+                .execute()
+            let blocked = try JSONDecoder().decode([BlockedUserName].self, from: response.data)
+            await MainActor.run { isCheckingUserName = false }
+            if !blocked.isEmpty {
+                await MainActor.run {
+                    errorMessage = "That username is blocked. Please choose another."
+                }
+                return
+            }
+            await MainActor.run {
+                currentStep = .email
+            }
+        } catch {
+            await MainActor.run {
+                isCheckingUserName = false
+                errorMessage = "Could not check username. Please try again."
+            }
         }
     }
 } 

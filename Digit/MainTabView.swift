@@ -14,11 +14,20 @@ struct MainTabView: View {
     @State private var showCalendarSheet = false
     @State private var confettiTrigger = 0
     @State private var showNewHabitSheet = false
+    @State private var selectedTab: Int = 0
+    @StateObject private var accountViewModel = AccountViewModel(
+        profileService: DummyProfileService(),
+        authService: DummyAuthService()
+    )
     
     var headerName: String {
         let name: String
         if let profile = authViewModel.currentUserProfile {
-            name = "\(profile.first_name) \(profile.last_name)"
+            if let userName = profile.user_name, !userName.isEmpty {
+                name = userName
+            } else {
+                name = "\(profile.first_name) \(profile.last_name)"
+            }
         } else {
             name = "Welcome!" // Placeholder until user is logged in
         }
@@ -28,81 +37,87 @@ struct MainTabView: View {
     
     var body: some View {
         Group {
-            if isLoading {
-                ProgressView("Loading...")
-            } else {
-                ZStack {
-                    VStack(spacing: 0) {
-                        DigitHeaderView(name: headerName, onCalendarTap: { showCalendarSheet = true }, onPlusTap: { showNewHabitSheet = true })
-                        // Tab bar separator
-                        Divider()
-                            .background(Color.digitDivider)
-                        ZStack(alignment: .bottom) {
-                            TabView {
-                                NavigationView {
-                                    HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel)
-                                        .navigationBarHidden(true)
-                                }
-                                .tabItem {
-                                    Label("Home", systemImage: "house.fill")
-                                }
-                                
-                                NavigationView {
-                                    StatsView()
-                                        .navigationBarHidden(true)
-                                }
-                                .tabItem {
-                                    Label("Stats", systemImage: "chart.bar.fill")
-                                }
-                                
-                                NavigationView {
-                                    AwardsView()
-                                        .navigationBarHidden(true)
-                                }
-                                .tabItem {
-                                    Label("Awards", systemImage: "rosette")
-                                }
-                                
-                                NavigationView {
-                                    SettingsView()
-                                        .navigationBarHidden(true)
-                                }
-                                .tabItem {
-                                    Label("Settings", systemImage: "gearshape.fill")
-                                }
+        if isLoading {
+            ProgressView("Loading...")
+        } else {
+            ZStack {
+                VStack(spacing: 0) {
+                    DigitHeaderView(name: headerName, onCalendarTap: { showCalendarSheet = true }, onPlusTap: { showNewHabitSheet = true })
+                    // Tab bar separator
+                    Divider()
+                        .background(Color.digitDivider)
+                    ZStack(alignment: .bottom) {
+                        TabView(selection: $selectedTab) {
+                            NavigationView {
+                                HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel)
+                                    .navigationBarHidden(true)
                             }
-                            .tint(Color.digitBrand)
-                            // Subtle tab bar background
-                            .background(
-                                Color.digitBackground
-                                    .overlay(
-                                        Color.digitBrand.opacity(0.04) // subtle tint for separation
-                                    )
-                            )
+                            .tabItem {
+                                Label("Home", systemImage: "house.fill")
+                            }
+                            .tag(0)
+                            
+                            NavigationView {
+                                StatsView()
+                                    .navigationBarHidden(true)
+                            }
+                            .tabItem {
+                                Label("Stats", systemImage: "chart.bar.fill")
+                            }
+                            .tag(1)
+                            
+                            NavigationView {
+                                AwardsView()
+                                    .navigationBarHidden(true)
+                            }
+                            .tabItem {
+                                Label("Awards", systemImage: "rosette")
+                            }
+                            .tag(2)
+                            
+                            NavigationView {
+                                SettingsView()
+                                    .navigationBarHidden(true)
+                                    .environmentObject(accountViewModel)
+                            }
+                            .tabItem {
+                                Label("Settings", systemImage: "gearshape.fill")
+                            }
+                            .tag(3)
                         }
-                        // Debug/test button for confetti
-                        /*
-                        Button("Test Confetti") {
-                            confettiTrigger += 1
-                            print("[DEBUG] Confetti triggered! Trigger count: \(confettiTrigger)")
-                        }
-                        .padding(.top, 12)
-                        */
+                        .tint(Color.digitBrand)
+                        .animation(nil, value: selectedTab)
+                        // Subtle tab bar background
+                        .background(
+                            Color.digitBackground
+                                .overlay(
+                                    Color.digitBrand.opacity(0.04) // subtle tint for separation
+                                )
+                        )
                     }
-                    .background(Color.digitBackground.ignoresSafeArea())
-                    .sheet(isPresented: $showCalendarSheet) {
+                    // Debug/test button for confetti
+                    /*
+                    Button("Test Confetti") {
+                        confettiTrigger += 1
+                        print("[DEBUG] Confetti triggered! Trigger count: \(confettiTrigger)")
+                    }
+                    .padding(.top, 12)
+                    */
+                }
+                .background(Color.digitBackground.ignoresSafeArea())
+                .sheet(isPresented: $showCalendarSheet) {
                         if let userIdString = authViewModel.currentUserProfile?.id,
                            let userId = UUID(uuidString: userIdString) {
-                            CalenderProgressView(userId: userId)
-                        } else {
-                            Text("User not found")
-                        }
-                    }
-                    .sheet(isPresented: $showNewHabitSheet) {
-                        NewHabitView(onDismiss: { showNewHabitSheet = false }, userId: authViewModel.currentUserProfile?.id ?? "", homeViewModel: homeViewModel)
+                        CalenderProgressView(userId: userId)
+                    } else {
+                        Text("User not found")
                     }
                 }
-                .confettiCannon(trigger: $confettiTrigger, num: 30, colors: [.red, .blue, .green, .yellow, .purple])
+                .sheet(isPresented: $showNewHabitSheet) {
+                    NewHabitView(onDismiss: { showNewHabitSheet = false }, userId: authViewModel.currentUserProfile?.id ?? "", homeViewModel: homeViewModel)
+                }
+            }
+            .confettiCannon(trigger: $confettiTrigger, num: 30, colors: [.red, .blue, .green, .yellow, .purple])
             }
         }
         .onAppear {

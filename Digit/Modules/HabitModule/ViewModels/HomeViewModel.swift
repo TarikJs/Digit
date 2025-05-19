@@ -20,7 +20,7 @@ final class HomeViewModel: ObservableObject {
     private let calendar = Calendar.current
     private let habitService: HabitServiceProtocol
     private let progressService: HabitProgressServiceProtocol
-    private var userId: UUID
+    var userId: UUID
     // Track which (habit, date) pairs are currently updating to prevent race conditions
     private var updatingProgressKeys = Set<String>()
     // Track which (habit, date) pairs have local updates not yet confirmed by backend

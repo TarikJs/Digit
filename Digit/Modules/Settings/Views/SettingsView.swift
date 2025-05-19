@@ -169,6 +169,11 @@ struct SettingsView: View {
         .sheet(isPresented: $isBillingPresented) {
             BillingView(isPresented: $isBillingPresented)
         }
+        .onAppear {
+            if accountViewModel.profile == nil {
+                Task { await accountViewModel.loadProfile() }
+            }
+        }
     }
 }
 
@@ -304,19 +309,29 @@ struct ProfileEditView: View {
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
+    @State private var isSaving: Bool = false
+    @State private var showError: Bool = false
 
     private var displayName: String {
-        guard let profile = accountViewModel.profile else { return "Guest" }
-        let lastInitial = profile.last_name.first.map { String($0) } ?? ""
-        return "\(profile.first_name) \(lastInitial)."
+        let name = accountViewModel.profileDisplayName
+        return name.isEmpty ? "Guest" : name
     }
 
-    private var userName: String? {
-        accountViewModel.profile?.user_name
+    private var userNameDisplay: String {
+        if let userName = accountViewModel.profile?.user_name, !userName.isEmpty {
+            return "@\(userName)"
+        } else {
+            return "@ Claim Username"
+        }
     }
 
     private var isGuest: Bool {
         accountViewModel.profile == nil
+    }
+
+    private var hasChanges: Bool {
+        guard let profile = accountViewModel.profile else { return false }
+        return firstName != profile.first_name || lastName != profile.last_name
     }
 
     var body: some View {
@@ -363,25 +378,13 @@ struct ProfileEditView: View {
                     Text(displayName)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(Color.digitBrand)
-                    if let userName = userName, !userName.isEmpty {
-                        Text("@\(userName)")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color.digitProgressGreen3)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                    } else {
-                        Button(action: { /* Claim username */ }) {
-                            Text("@ Claim Username")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(Color.digitProgressGreen3)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 8)
-                                .background(Color.white)
-                                .cornerRadius(16)
-                        }
-                    }
+                    Text(userNameDisplay)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color.digitProgressGreen3)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .cornerRadius(16)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -404,13 +407,13 @@ struct ProfileEditView: View {
                     .padding(.top, 16)
                     .padding(.horizontal, 16)
                 VStack(spacing: 0) {
-                    TextField("First Name", text: $firstName)
-                        .disabled(isGuest)
+                    TextField("First Name", text: $firstName, prompt: Text("First Name"))
+                        .disabled(isGuest || isSaving)
                         .padding(12)
                         .foregroundColor(Color.digitBrand)
                     Divider().background(Color.digitDivider)
-                    TextField("Last Name", text: $lastName)
-                        .disabled(isGuest)
+                    TextField("Last Name", text: $lastName, prompt: Text("Last Name"))
+                        .disabled(isGuest || isSaving)
                         .padding(12)
                         .foregroundColor(Color.digitBrand)
                 }
@@ -431,7 +434,44 @@ struct ProfileEditView: View {
                     if let profile = accountViewModel.profile {
                         firstName = profile.first_name
                         lastName = profile.last_name
+                    } else {
+                        firstName = ""
+                        lastName = ""
                     }
+                }
+
+                Button(action: {
+                    Task {
+                        isSaving = true
+                        showError = false
+                        await accountViewModel.updateProfile(firstName: firstName, lastName: lastName)
+                        isSaving = false
+                        if accountViewModel.errorMessage == nil {
+                            dismiss()
+                        } else {
+                            showError = true
+                        }
+                    }
+                }) {
+                    if isSaving {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Save")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(hasChanges && !isSaving ? Color.digitBrand : Color.gray)
+                            .cornerRadius(12)
+                    }
+                }
+                .disabled(!hasChanges || isSaving || isGuest)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .alert(isPresented: $showError) {
+                    Alert(title: Text("Error"), message: Text(accountViewModel.errorMessage ?? "Failed to update profile."), dismissButton: .default(Text("OK")))
                 }
 
                 // Account Status section title and card
@@ -527,7 +567,7 @@ struct ProfileEditView: View {
                     HStack {
                         Image(systemName: "envelope")
                             .foregroundColor(Color.digitBrand)
-                        Text("user@email.com") // Replace with actual user email
+                        Text(accountViewModel.profile?.email ?? "Not set")
                             .font(.system(size: 17))
                         Spacer()
                     }
@@ -624,6 +664,9 @@ class DummyProfileService: ProfileServiceProtocol {
             created_at: nil
         )
     }
+    func updateProfile(_ profile: UserProfile) async throws {
+        // No-op for dummy
+    }
 }
 
 class DummyAuthService: AuthServiceProtocol {
@@ -633,9 +676,14 @@ class DummyAuthService: AuthServiceProtocol {
 #if DEBUG
 #Preview {
     let mockAuthViewModel = AuthViewModel()
+    let mockAccountViewModel = AccountViewModel(
+        profileService: DummyProfileService(),
+        authService: DummyAuthService()
+    )
     SettingsView()
         .environmentObject(AuthCoordinator(authViewModel: mockAuthViewModel))
         .environmentObject(mockAuthViewModel)
+        .environmentObject(mockAccountViewModel)
 }
 #endif
 

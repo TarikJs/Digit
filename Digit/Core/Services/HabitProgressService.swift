@@ -71,7 +71,7 @@ final class HabitProgressService: HabitProgressServiceProtocol {
     }
 
     func upsertProgress(progress: HabitProgress) async throws {
-        guard let session = SupabaseManager.shared.client.auth.currentSession else {
+        guard SupabaseManager.shared.client.auth.currentSession != nil else {
             print("📱 [DEBUG] Not authenticated: cannot upsert progress.")
             throw HabitProgressServiceError.notAuthenticated
         }

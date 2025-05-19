@@ -6,18 +6,108 @@ Digit is an intuitive, iOS-native habit-tracking app designed to help users focu
 
 ## Official Color Palette
 
+> All app color definitions are maintained in `SharedUI/Color+Digit.swift` for a single source of truth.
+
 - **Background color:**
-  - HEX: #FFFBF9
-  - RGB: 255, 251, 249
+  - HEX: #FFFFFF
+  - RGB: 255, 255, 255
 - **Brand color:**
-  - HEX: #23409A
-  - RGB: 35, 64, 154
-- **Accent color 1:**
-  - HEX: #D1ED36
-  - RGB: 209, 237, 54
-- **Accent color 2:**
-  - HEX: #F3DAFF
-  - RGB: 243, 218, 255
+  - HEX: #000000
+  - RGB: 0, 0, 0
+- **Secondary text:**
+  - HEX: #6B7280
+  - RGB: 107, 114, 128
+
+- **Habit Progress Greens:**
+  - #E9F6E2 (233, 246, 226)
+  - #B6E3A1 (182, 227, 161)
+  - #6CC644 (108, 198, 68)
+  - #44A340 (68, 163, 64)
+  - #216E39 (33, 110, 57)
+
+- **Accent Green:**
+  - #44A340 (68, 163, 64)
+
+## Recent Implementation Details
+
+### Legal Documents
+- Legal documents (Privacy Policy, Terms of Service, Licenses) are stored as markdown strings in `Core/Models/LegalDocuments.swift`.
+- Displayed in-app using SwiftUI's markdown rendering for accessibility and a native look.
+
+### Settings/Profile
+- Profile display name logic: shows "Profile" as a placeholder if the name is missing, otherwise "FirstName L.".
+- Email verification status is checked against the Supabase `profiles` table and shown in the settings.
+- All user-facing strings are localized; UI supports Light/Dark Mode and Dynamic Type.
+
+### Statistics
+- The stats view uses Swift Charts for a modern, branded bar chart.
+- Chart is styled with brand colors, supports dark mode, and features detailed Y-axis ticks.
+
+### Architecture
+- MVVM + Coordinators pattern for clear separation of concerns.
+- Shared models/services in `Core/`, reusable UI in `SharedUI/`.
+- No force unwraps, no print statements, no global mutable state (except AppCoordinator).
+- SwiftLint and Apple best practices enforced.
+
+### Testing
+- Unit and UI tests cover all critical flows.
+- Dependency injection and protocol-oriented design for testability.
+
+### Supabase Integration
+- Authentication and user data (including email verification) managed via Supabase.
+- App queries Supabase for user status, profile info, and progress.
+
+## Supabase Integration
+
+### Overview
+- **Supabase** is the backend for authentication, user profiles, habit data, and progress tracking.
+- The app uses the official Supabase Swift SDK for all network/database operations.
+- All Supabase logic is encapsulated in service classes under `Core/Services/` for modularity and testability.
+
+### Authentication
+- **User authentication** is handled via Supabase Auth, supporting email/password and Apple sign-in.
+- The app uses `SupabaseManager.shared.client.auth` for session management and user ID retrieval.
+- Deep links for authentication (e.g., email verification) are handled in `DigitApp.swift` via `.onOpenURL`.
+
+### User Profiles
+- **Profiles** are stored in the Supabase `profiles` table.
+- `SupabaseProfileService` provides:
+  - `fetchProfile()`: Loads the current user's profile from Supabase.
+  - `updateProfile(_:)`: Updates the user's profile in Supabase.
+- The app checks the `profiles` table for email verification status and displays it in the settings.
+
+### Habits
+- **Habits** are stored in the Supabase `habits` table.
+- `HabitService` provides:
+  - `fetchHabits()`: Loads all habits for the current user.
+  - `addHabit(_:)`, `updateHabit(_:)`, `deleteHabit(id:)`: CRUD operations for habits.
+  - `getCurrentHabit(for:)`: Fetches the most recent habit for a user.
+- The `Habit` model matches the Supabase schema, including all relevant fields and date handling.
+
+### Habit Progress
+- **Habit progress** is tracked in the Supabase `habit_progress` table.
+- `HabitProgressService` provides:
+  - `fetchProgress(userId:habitId:date:)`: Loads progress for a specific habit and date.
+  - `upsertProgress(progress:)`: Inserts or updates progress for a habit.
+  - `fetchProgressForRange(userId:habitId:startDate:endDate:)`: Loads progress over a date range.
+- All date handling is UTC and matches Supabase/Postgres conventions.
+
+### Supabase Client Management
+- `SupabaseManager.shared.client` is the singleton instance for all Supabase operations.
+- All services use dependency injection for the client, allowing for easy testing and mocking.
+
+### Edge Functions
+- Custom backend logic (e.g., sending emails) is implemented as Supabase Edge Functions in `supabase/functions/`.
+- Example: `send-email` function for transactional or notification emails.
+
+### Error Handling
+- All Supabase service methods use `async/await` and throw errors for robust error handling.
+- Custom error enums (e.g., `HabitServiceError`, `SupabaseError`) provide user-friendly error messages and debugging info.
+
+### Data Privacy & Security
+- All user data is securely stored in Supabase.
+- The app never stores sensitive data locally except as required for session management.
+- All network requests are encrypted via HTTPS.
 
 ---
 

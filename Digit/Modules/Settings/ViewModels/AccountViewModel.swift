@@ -4,6 +4,7 @@ import Combine
 // MARK: - Protocols
 protocol ProfileServiceProtocol {
     func fetchProfile() async throws -> UserProfile
+    func updateProfile(_ profile: UserProfile) async throws
 }
 
 protocol AuthServiceProtocol {
@@ -42,6 +43,29 @@ final class AccountViewModel: ObservableObject {
         isLoading = false
     }
 
+    func updateProfile(firstName: String, lastName: String) async {
+        guard var currentProfile = profile else { return }
+        isLoading = true
+        errorMessage = nil
+        currentProfile = UserProfile(
+            id: currentProfile.id,
+            email: currentProfile.email,
+            first_name: firstName,
+            last_name: lastName,
+            user_name: currentProfile.user_name,
+            date_of_birth: currentProfile.date_of_birth,
+            gender: currentProfile.gender,
+            created_at: currentProfile.created_at
+        )
+        do {
+            try await profileService.updateProfile(currentProfile)
+            profile = currentProfile
+        } catch {
+            errorMessage = NSLocalizedString("account_profile_update_error", comment: "Failed to update profile")
+        }
+        isLoading = false
+    }
+
     func signOut() async {
         isLoading = true
         errorMessage = nil
@@ -56,9 +80,13 @@ final class AccountViewModel: ObservableObject {
 
     // MARK: - Computed Properties
     var profileDisplayName: String {
-        guard let profile = profile else { return "" }
+        guard let profile = profile else { return "Guest" }
+        if let userName = profile.user_name, !userName.isEmpty {
+            return userName
+        }
         let lastInitial = profile.last_name.first.map { String($0) } ?? ""
-        return "\(profile.first_name) \(lastInitial)."
+        let name = "\(profile.first_name) \(lastInitial)."
+        return name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Guest" : name
     }
 
     var emailStatus: (text: String, isVerified: Bool) {

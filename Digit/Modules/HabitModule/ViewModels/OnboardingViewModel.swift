@@ -195,11 +195,6 @@ final class OnboardingViewModel: ObservableObject {
                     .upsert(profile)
                     .execute()
                 print("Profile save response: \(response)")
-            } catch {
-                print("Failed to save profile (exception): \(error)")
-                await MainActor.run { self.errorMessage = "Failed to save your profile. Please try again." }
-                onComplete()
-                return
             }
             
             // Send welcome email
@@ -215,9 +210,6 @@ final class OnboardingViewModel: ObservableObject {
                         options: .init(body: emailPayload)
                     )
                     print("Welcome email sent successfully")
-                } catch {
-                    print("Failed to send welcome email: \(error)")
-                    // Continue with onComplete even if email fails
                 }
             }
             

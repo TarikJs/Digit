@@ -16,8 +16,8 @@ struct MainTabView: View {
     @State private var showNewHabitSheet = false
     @State private var selectedTab: Int = 0
     @StateObject private var accountViewModel = AccountViewModel(
-        profileService: DummyProfileService(),
-        authService: DummyAuthService()
+        profileService: SupabaseProfileService(),
+        authService: SupabaseAuthService()
     )
     
     var headerName: String {

@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     var onHabitCompleted: () -> Void = {}
     @ObservedObject var viewModel: HomeViewModel
+    @Binding var isEditMode: Bool
     @State private var progressCurrentPage: Int = 0
     private let progressCards: [ProgressCardData] = [
         .init(icon: "drop.fill", title: "Drink water", progress: "1", goal: "10", unit: "glasses", color: .digitHabitGreen),
@@ -58,38 +59,28 @@ struct HomeView: View {
                 // MARK: - Header (Today/title row)
                 // Insert header here if not already present
 
-                // Header separator
-                Divider()
-                    .background(Color.digitDivider)
-                    .padding(.bottom, 4)
-                
-                // MARK: - Calendar (Date Selector)
-                dateSelector
-                    .padding(.top, 8)
-                    .padding(.horizontal, Layout.horizontalPadding)
-                    .padding(.bottom, 11)
-                
-                // Divider between calendar and gray section
-                Divider()
-                    .background(Color.digitDivider)
-                
-                // Gray section starts immediately after divider
+                // Gray section with sticky header and scrollable content
                 ZStack(alignment: .top) {
                     Color.digitGrayLight
                         .ignoresSafeArea()
                     // Sticky header
                     Color.digitBrand
-                        .frame(height: 48)
+                        .frame(height: 40)
                         .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
                         .overlay(
-                            Text("Your Goals")
-                                .font(.digitTitle2)
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color.white)
-                                .padding(.top, 12)
-                                .padding(.bottom, 8)
-                                .padding(.horizontal, DigitLayout.Padding.horizontal)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Color.digitAccentRed)
+                                    .frame(width: 4, height: 24)
+                                Text("Your Goals")
+                                    .font(.plusJakartaSans(size: 22, weight: .bold))
+                                    .foregroundStyle(Color.white)
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityLabel("Your Goals")
+                                Spacer()
+                            }
+                            .padding(.horizontal, DigitLayout.Padding.horizontal)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         )
                         .overlay(
                             Divider()
@@ -132,8 +123,38 @@ struct HomeView: View {
                     }
                 }
                 .background(Color.digitGrayLight)
+
+                // MARK: - Calendar (Date Selector) at the bottom
+                Divider()
+                    .background(Color.digitDivider)
+                dateSelector
+                    .padding(.top, 8)
+                    .padding(.horizontal, Layout.horizontalPadding)
+                    .padding(.bottom, 11)
             }
             .background(Color.digitBackground)
+
+            // Floating pencil/checkmark button
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.spring()) { isEditMode.toggle() }
+                    }) {
+                        Image(systemName: isEditMode ? "checkmark" : "trash.fill")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(Color.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.digitAccentRed)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .shadow(color: Color.black.opacity(0.08), radius: 2, y: 1)
+                            .accessibilityLabel(isEditMode ? "Done editing" : "Edit habits")
+                    }
+                    .padding(.trailing, DigitLayout.Padding.horizontal)
+                    .padding(.bottom, 96)
+                }
+            }
         }
         .preferredColorScheme(.light)
         .alert("Error", isPresented: .init(
@@ -154,29 +175,35 @@ struct HomeView: View {
             ForEach(-3...3, id: \ .self) { offset in
                 let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
                 let isSelected = Calendar.current.isDate(date, inSameDayAs: viewModel.selectedDate)
+                let isToday = Calendar.current.isDateInToday(date)
+                let completed = viewModel.completedHabitsCount(on: date)
+                let total = viewModel.activeHabits(on: date).count
+                let textColor: Color = isToday ? Color.digitAccentRed : (isSelected ? Color.digitBrand : Color.digitSecondaryText)
                 VStack(spacing: 2) {
                     Text(dayNumber(from: date))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.plusJakartaSans(size: 16, weight: .semibold))
+                        .foregroundStyle(textColor)
                     Text(dayName(from: date))
-                        .font(.system(size: 12))
-                    Text("\(viewModel.completedHabitsCount(on: date))/\(viewModel.activeHabits(on: date).count)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
+                        .font(.plusJakartaSans(size: 12))
+                        .foregroundStyle(textColor)
+                    Text("\(completed)/\(total)")
+                        .font(.plusJakartaSans(size: 11, weight: .medium))
+                        .foregroundStyle(textColor)
+                    // Underline for selected day or today
+                    Rectangle()
+                        .fill(isToday ? Color.digitAccentRed : (isSelected ? Color.digitBrand : Color.clear))
+                        .frame(height: 3)
+                        .cornerRadius(1.5)
+                        .padding(.top, 2)
                 }
                 .frame(width: 48, height: 60)
                 .contentShape(Rectangle())
-                .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(isSelected ? Color.digitBrand : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.digitBrand, lineWidth: isSelected ? 2 : 1)
-                )
                 .onTapGesture {
                     viewModel.selectDate(date)
                 }
+                .accessibilityElement()
+                .accessibilityLabel("\(dayName(from: date)), \(completed) completed out of \(total)")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .frame(maxWidth: .infinity)
@@ -208,9 +235,12 @@ struct HomeView: View {
                 title: habit.name,
                 progress: viewModel.progress(for: habit, on: viewModel.selectedDate),
                 goal: viewModel.goal(for: habit, on: viewModel.selectedDate),
+                unit: habit.unit,
                 onIncrement: { viewModel.incrementProgress(for: habit, on: viewModel.selectedDate) },
                 onDecrement: { viewModel.decrementProgress(for: habit, on: viewModel.selectedDate) },
-                buttonsEnabled: isToday && !viewModel.isUpdatingProgress(for: habit, on: viewModel.selectedDate)
+                buttonsEnabled: isToday && !viewModel.isUpdatingProgress(for: habit, on: viewModel.selectedDate),
+                isEditMode: isEditMode,
+                onDelete: isEditMode ? { viewModel.deleteHabit(habit) } : nil
             )
             .id(habit.id)
             .padding(.vertical, 2)
@@ -264,7 +294,7 @@ struct HabitRow: View {
 }
 
 #Preview {
-    HomeView(viewModel: HomeViewModel(habitService: HabitService(), progressService: HabitProgressService(), userId: UUID()))
+    HomeView(viewModel: HomeViewModel(habitService: HabitService(), progressService: HabitProgressService(), userId: UUID()), isEditMode: .constant(false))
 }
 
 // MARK: - Progress Card Data

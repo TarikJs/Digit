@@ -37,14 +37,14 @@ final class HabitViewModel: ObservableObject {
     /// Creates a new habit and notifies on success.
     func createNewHabit(
         name: String,
-        description: String?,
         dailyGoal: Int,
         icon: String,
         startDate: Date,
         endDate: Date?,
         repeatFrequency: String,
         weekdays: [Int]?,
-        reminderTime: String?
+        reminderTime: String?,
+        unit: String?
     ) async {
         isLoading = true
         errorMessage = nil
@@ -55,7 +55,6 @@ final class HabitViewModel: ObservableObject {
                 id: UUID(),
                 userId: userId,
                 name: name,
-                description: description,
                 dailyGoal: dailyGoal,
                 icon: icon,
                 startDate: startDate,
@@ -64,7 +63,8 @@ final class HabitViewModel: ObservableObject {
                 weekdays: weekdays,
                 reminderTime: reminderTime,
                 createdAt: Date(),
-                updatedAt: Date()
+                updatedAt: Date(),
+                unit: unit
             )
             try await habitService.addHabit(habit)
             onHabitCreated?()

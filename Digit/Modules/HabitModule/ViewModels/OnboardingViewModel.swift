@@ -7,6 +7,7 @@ enum OnboardingStep {
     case email
     case gender
     case dateOfBirth
+    case region
     case enableNotification
 }
 
@@ -19,7 +20,7 @@ enum Gender: String, CaseIterable {
 
 final class OnboardingViewModel: ObservableObject {
     let onComplete: () -> Void
-    let onDismiss: () -> Void
+    var onDismiss: () -> Void
     
     @Published var currentStep: OnboardingStep = .name
     @Published var firstName: String = ""
@@ -32,6 +33,8 @@ final class OnboardingViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var userName: String = ""
     @Published var isCheckingUserName = false
+    @Published var selectedRegion: String? = nil
+    @Published var isEmailVerified: Bool
     
     private let minimumAge = 18
     private let maximumAge = 100
@@ -83,11 +86,13 @@ final class OnboardingViewModel: ObservableObject {
         case .userName:
             return isUserNameValid
         case .email:
-            return isEmailValid
-        case .dateOfBirth:
-            return isDateOfBirthValid
+            return isEmailVerified
         case .gender:
             return selectedGender != nil
+        case .dateOfBirth:
+            return isDateOfBirthValid
+        case .region:
+            return selectedRegion != nil
         case .enableNotification:
             return true
         }
@@ -96,8 +101,38 @@ final class OnboardingViewModel: ObservableObject {
     var isFirstStep: Bool {
         currentStep == .name
     }
-
-    init(onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    
+    // Reference to AuthViewModel for verification and resend
+    weak var authViewModel: AuthViewModel?
+    
+    func refreshEmailVerificationStatus() async {
+        guard let authViewModel else { return }
+        // Only refresh session if a session exists
+        var verified = false
+        do {
+            let _ = try await SupabaseManager.shared.client.auth.session
+            do {
+                try await SupabaseManager.shared.client.auth.refreshSession()
+            } catch {
+                print("Failed to refresh session: \(error)")
+            }
+            verified = await authViewModel.isEmailVerified()
+        } catch {
+            print("No valid session, cannot refresh: \(error)")
+            // Optionally, handle logout or prompt user to log in again
+        }
+        let isVerified = verified
+        await MainActor.run { self.isEmailVerified = isVerified }
+    }
+    
+    func resendVerificationEmail() async {
+        await authViewModel?.resendVerificationEmail()
+    }
+    
+    init(email: String = "", isEmailVerified: Bool = false, authViewModel: AuthViewModel? = nil, onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+        self.email = email
+        self.isEmailVerified = isEmailVerified
+        self.authViewModel = authViewModel
         self.onComplete = onComplete
         self.onDismiss = onDismiss
     }
@@ -115,6 +150,8 @@ final class OnboardingViewModel: ObservableObject {
         case .gender:
             currentStep = .dateOfBirth
         case .dateOfBirth:
+            currentStep = .region
+        case .region:
             currentStep = .enableNotification
         case .enableNotification:
             Task {
@@ -133,6 +170,8 @@ final class OnboardingViewModel: ObservableObject {
         let date_of_birth: String
         let gender: String
         let created_at: String?
+        let region: String?
+        let setup_comp: String?
     }
     
     private struct WelcomeEmailPayload: Encodable {
@@ -184,7 +223,9 @@ final class OnboardingViewModel: ObservableObject {
                 user_name: userName.trimmingCharacters(in: .whitespacesAndNewlines),
                 date_of_birth: dateFormatter.string(from: dateOfBirth),
                 gender: gender.rawValue,
-                created_at: dateFormatter.string(from: Date())
+                created_at: dateFormatter.string(from: Date()),
+                region: selectedRegion,
+                setup_comp: "Y"
             )
             
             print("Attempting to save profile: \(profile)")
@@ -228,13 +269,15 @@ final class OnboardingViewModel: ObservableObject {
         case .userName:
             currentStep = .name
         case .email:
-            currentStep = .name
+            currentStep = .userName
         case .gender:
-            currentStep = .email
+            currentStep = isEmailVerified ? .userName : .email
         case .dateOfBirth:
             currentStep = .gender
-        case .enableNotification:
+        case .region:
             currentStep = .dateOfBirth
+        case .enableNotification:
+            currentStep = .region
         }
     }
     
@@ -243,31 +286,61 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     private func checkBlockedUserNameAndProceed() async {
-        await MainActor.run { isCheckingUserName = true; errorMessage = nil }
-        let trimmed = userName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        isCheckingUserName = true
+        errorMessage = nil
+        
         do {
             let response = try await SupabaseManager.shared.client
                 .from("blocked_usernames")
-                .select("user_name")
-                .ilike("user_name", pattern: trimmed)
-                .limit(1)
+                .select()
+                .eq("user_name", value: userName.lowercased())
                 .execute()
-            let blocked = try JSONDecoder().decode([BlockedUserName].self, from: response.data)
-            await MainActor.run { isCheckingUserName = false }
-            if !blocked.isEmpty {
-                await MainActor.run {
-                    errorMessage = "That username is blocked. Please choose another."
-                }
-                return
-            }
-            await MainActor.run {
-                currentStep = .email
-            }
-        } catch {
+            
+            let blockedUsernames = try JSONDecoder().decode([BlockedUserName].self, from: response.data)
+            
             await MainActor.run {
                 isCheckingUserName = false
-                errorMessage = "Could not check username. Please try again."
+                if blockedUsernames.isEmpty {
+                    currentStep = isEmailVerified ? .gender : .email
+                } else {
+                    errorMessage = "This username is not available. Please try another."
+                }
+            }
+        } catch {
+            print("Error checking username: \(error)")
+            await MainActor.run {
+                isCheckingUserName = false
+                errorMessage = "Failed to verify username. Please try again."
             }
         }
+    }
+    
+    func markProfileInWork() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id.uuidString
+            let partialProfile = UserProfile(
+                id: userId,
+                email: email,
+                first_name: firstName,
+                last_name: lastName,
+                user_name: userName,
+                date_of_birth: "",
+                gender: "",
+                created_at: nil,
+                region: nil,
+                setup_comp: "IW"
+            )
+            _ = try await SupabaseManager.shared.client
+                .from("profiles")
+                .upsert(partialProfile)
+                .execute()
+        } catch {
+            print("[DEBUG] Failed to mark profile in work: \(error)")
+        }
+    }
+    
+    func deletePartialProfileIfAbandoned() async {
+        await authViewModel?.deleteCurrentUserProfileIfNotComplete()
     }
 } 

@@ -7,7 +7,7 @@ final class StatsViewModel: ObservableObject {
     private let userId: UUID
     
     // MARK: - Published Properties
-    @Published var selectedPeriod: Period = .month {
+    @Published var selectedPeriod: Period = .week {
         didSet {
             Task { await loadStats() }
         }
@@ -182,6 +182,21 @@ final class StatsViewModel: ObservableObject {
         } catch {
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
+                self.isLoading = false
+            }
+        }
+    }
+    
+    @MainActor
+    func deleteHabit(id: UUID) async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await habitService.deleteHabit(id: id)
+            await loadStats()
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to delete habit: \(error.localizedDescription)"
                 self.isLoading = false
             }
         }

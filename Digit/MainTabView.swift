@@ -19,6 +19,7 @@ struct MainTabView: View {
         profileService: SupabaseProfileService(),
         authService: SupabaseAuthService()
     )
+    @State private var isEditMode: Bool = false
     
     // Custom initializer for preview/test
     init(isLoading: Bool = true) {
@@ -47,14 +48,14 @@ struct MainTabView: View {
         } else {
             ZStack {
                 VStack(spacing: 0) {
-                    DigitHeaderView(name: headerName, onCalendarTap: { showCalendarSheet = true }, onPlusTap: { showNewHabitSheet = true })
+                    DigitHeaderView(name: headerName, topPadding: 16, bottomPadding: 8, onCalendarTap: { showCalendarSheet = true }, onPlusTap: { showNewHabitSheet = true }, isEditMode: isEditMode, onTrashTap: { print("[DEBUG] Trash tapped") })
                     // Tab bar separator
                     Divider()
                         .background(Color.digitDivider)
                     ZStack(alignment: .bottom) {
                         TabView(selection: $selectedTab) {
                             NavigationView {
-                                HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel)
+                                HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel, isEditMode: $isEditMode)
                                     .navigationBarHidden(true)
                             }
                             .tabItem {

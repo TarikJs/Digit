@@ -11,10 +11,13 @@ struct AuthView: View {
             Color.digitBackground
                 .ignoresSafeArea()
             
-            if authViewModel.isWaitingForVerification {
+            if coordinator.currentState == .waitingForVerification {
                 WaitingForEmailVerificationView(onCancel: {
-                    authViewModel.stopVerificationPolling()
-                    authViewModel.isWaitingForVerification = false
+                    Task {
+                        await coordinator.handleVerificationCancel()
+                    }
+                }, onVerified: {
+                    coordinator.proceedToMain()
                 })
             } else {
                 VStack(spacing: 32) {
@@ -24,7 +27,7 @@ struct AuthView: View {
                     
                     if let error = authViewModel.errorMessage {
                         Text(error)
-                            .font(.system(size: 14))
+                            .font(.plusJakartaSans(size: 14))
                             .foregroundStyle(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -36,16 +39,17 @@ struct AuthView: View {
                         isEmailValid: authViewModel.isEmailValid,
                         isLogin: $isLogin,
                         isLoading: authViewModel.isLoading,
-                        onEmailContinue: { authViewModel.continueWithEmail() },
+                        onEmailContinue: { authViewModel.continueWithEmail(isLogin: isLogin) },
                         onApple: { authViewModel.continueWithApple() },
                         onGoogle: { authViewModel.continueWithGoogle() },
-                        onFacebook: { authViewModel.continueWithFacebook() }
+                        onFacebook: { authViewModel.continueWithFacebook() },
+                        password: $authViewModel.password
                     )
                     
                     VStack(spacing: 8) {
                         HStack(spacing: 4) {
-                            Text(isLogin ? "New to Digit?" : "Already have an account?")
-                                .font(.system(size: 14))
+                            Text(isLogin ? "New to TinyDos?" : "Already have an account?")
+                                .font(.plusJakartaSans(size: 14))
                                 .foregroundStyle(Color(hex: "6B7280"))
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                             Button(action: {
@@ -54,14 +58,14 @@ struct AuthView: View {
                                 }
                             }) {
                                 Text(isLogin ? "Sign up" : "Log in")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.plusJakartaSans(size: 14, weight: .medium))
                                     .foregroundStyle(Color.digitBrand)
                             }
                         }
                         .animation(.easeInOut(duration: 0.2), value: isLogin)
                     }
                     .frame(width: 320)
-                    Spacer()
+                    .padding(.bottom, 24)
                 }
                 
                 if authViewModel.isLoading {
@@ -85,6 +89,11 @@ struct AuthView: View {
 
 struct WaitingForEmailVerificationView: View {
     var onCancel: () -> Void
+    var onVerified: () -> Void
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    @State private var isPolling = false
+    @State private var resendStatus: String? = nil
+    @State private var isResending = false
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -94,8 +103,7 @@ struct WaitingForEmailVerificationView: View {
                 .frame(width: 80, height: 80)
                 .foregroundStyle(Color.digitBrand)
             Text("Check your email")
-                .font(.title)
-                .fontWeight(.bold)
+                .font(.plusJakartaSans(size: 24, weight: .bold))
             Text("We've sent you a link to verify your email. Please tap the link in your inbox to continue.")
                 .font(.body)
                 .multilineTextAlignment(.center)
@@ -103,6 +111,30 @@ struct WaitingForEmailVerificationView: View {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(Color.digitBrand)
+            if let resendStatus = resendStatus {
+                Text(resendStatus)
+                    .font(.plusJakartaSans(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            Button(action: {
+                isResending = true
+                resendStatus = nil
+                Task {
+                    await authViewModel.resendVerificationEmail()
+                    isResending = false
+                    resendStatus = authViewModel.errorMessage == nil ? "Verification email resent!" : authViewModel.errorMessage
+                }
+            }) {
+                if isResending {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Text("Resend verification email")
+                        .font(.body)
+                        .foregroundStyle(Color.digitBrand)
+                }
+            }
+            .disabled(isResending)
             Button(action: onCancel) {
                 Text("Cancel")
                     .font(.body)
@@ -112,6 +144,16 @@ struct WaitingForEmailVerificationView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.digitBackground.ignoresSafeArea())
+        .onAppear {
+            guard !isPolling else { return }
+            isPolling = true
+            authViewModel.pollForEmailVerification {
+                onVerified()
+            }
+        }
+        .onDisappear {
+            authViewModel.stopVerificationPolling()
+        }
     }
 }
 
@@ -119,12 +161,15 @@ struct WaitingForEmailVerificationView: View {
 struct AuthOnboardingCarousel: View {
     @State private var currentPage = 0
     private let pages: [(image: String, title: String, subtitle: String)] = [
-        ("Wearable Tech 1", "Welcome to Digit", "We believe the world is more beautiful as each person gets better. Yep, that's you."),
+        ("Wearable Tech 1", "Welcome to TinyDos", "We believe the world is more beautiful as each person gets better. Yep, that's you."),
         ("Wearable Tech 3", "Track Your Habits", "Stay on top of your goals with daily reminders and progress tracking."),
         ("Zero Tasks 3", "Celebrate Progress", "Earn awards and see your growth as you build better habits.")
     ]
+    init() {
+        // Debug print all available font families and names (removed)
+    }
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 12) {
             TabView(selection: $currentPage) {
                 ForEach(0..<pages.count, id: \ .self) { idx in
                     VStack(spacing: 0) {
@@ -134,14 +179,14 @@ struct AuthOnboardingCarousel: View {
                             .frame(height: 220)
                             .padding(.bottom, 8)
                         Text(pages[idx].title)
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.custom("PlusJakartaSans-ExtraBold", size: 24))
                             .foregroundStyle(Color.digitBrand)
                             .multilineTextAlignment(.center)
                             .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.bottom, 4)
                         Text(pages[idx].subtitle)
-                            .font(.system(size: 16))
+                            .font(.plusJakartaSans(size: 16))
                             .foregroundStyle(Color(hex: "6B7280"))
                             .multilineTextAlignment(.center)
                             .lineLimit(nil)
@@ -151,16 +196,19 @@ struct AuthOnboardingCarousel: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
-            .frame(height: 340)
-            // Dots
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            .frame(height: 300)
+            // Custom small dots below the carousel
             HStack(spacing: 8) {
-                ForEach(0..<pages.count, id: \ .self) { idx in
+                ForEach(0..<pages.count, id: \.self) { idx in
                     Circle()
-                        .fill(idx == currentPage ? Color.digitBrand : Color.digitBrand.opacity(0.2))
-                        .frame(width: 8, height: 8)
+                        .fill(idx == currentPage ? Color.digitBrand : Color.digitBrand.opacity(0.18))
+                        .frame(width: 6, height: 6)
+                        .animation(.easeInOut(duration: 0.2), value: currentPage)
+                        .accessibilityLabel(idx == currentPage ? "Current page" : "Page \(idx + 1)")
                 }
             }
+            .padding(.top, 8)
         }
     }
 }

@@ -10,6 +10,7 @@ final class AuthViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isWaitingForVerification: Bool = false
     @Published var currentUserProfile: UserProfile? = nil
+    @Published var password: String = ""
     
     // Track sign-in attempts
     private var lastSignInAttempt: Date?
@@ -23,68 +24,52 @@ final class AuthViewModel: ObservableObject {
         return emailPredicate.evaluate(with: email)
     }
     
-    func continueWithEmail() {
-        guard isEmailValid else {
-            errorMessage = "Please enter a valid email address"
-            return
+    func isEmailVerified() async -> Bool {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            return session.user.emailConfirmedAt != nil
+        } catch {
+            return false
         }
-        
-        // Rate limiting
-        if let lastAttempt = lastSignInAttempt,
-           Date().timeIntervalSince(lastAttempt) < minimumSignInInterval {
-            let remainingTime = Int(minimumSignInInterval - Date().timeIntervalSince(lastAttempt))
-            errorMessage = "Please wait \(remainingTime) seconds before trying again"
-            return
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        lastSignInAttempt = Date()
-        
-        let normalizedEmail = email.lowercased()
-        
+    }
+    
+    func continueWithEmail(isLogin: Bool) {
         Task {
-            do {
-                // Check if profile exists for this email
-                let response = try await SupabaseManager.shared.client
-                    .from("profiles")
-                    .select("*")
-                    .eq("email", value: normalizedEmail)
-                    .execute()
-                
-                let profiles = (try? JSONDecoder().decode([UserProfile].self, from: response.data)) ?? []
-                
-                if !profiles.isEmpty {
-                    // Existing user: login
-                    _ = try await SupabaseManager.shared.client.auth.signInWithOTP(
-                        email: normalizedEmail,
-                        shouldCreateUser: false
-                    )
-                    // Show waiting for verification screen
-                    isWaitingForVerification = true
-                    startVerificationPolling()
-                } else {
-                    // New user: signup
-                    _ = try await SupabaseManager.shared.client.auth.signInWithOTP(
-                        email: normalizedEmail,
-                        shouldCreateUser: true
-                    )
-                    // Show waiting for verification screen
-                    isWaitingForVerification = true
-                    startVerificationPolling()
-                }
-                
-                // Show a generic message for both flows
-                errorMessage = "Please check your email for a login or confirmation link."
-            } catch {
-                errorMessage = "An error occurred. Please try again later."
+            if isLogin {
+                await signInWithEmailPassword()
+            } else {
+                await signUpWithEmailPassword()
             }
-            isLoading = false
         }
     }
     
     func continueWithGoogle() {
-        Task { await handlePostSignIn() }
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                // Find the top-most view controller for presentation
+                guard let rootVC = UIApplication.shared.connectedScenes
+                    .compactMap({ $0 as? UIWindowScene })
+                    .flatMap({ $0.windows })
+                    .first(where: { $0.isKeyWindow })?.rootViewController else {
+                    throw GoogleSignInError.missingClientID // Use as generic error
+                }
+                let idToken = try await GoogleSignInManager.shared.signIn(presentingViewController: rootVC)
+                let credentials = OpenIDConnectCredentials(
+                    provider: .google,
+                    idToken: idToken,
+                    nonce: nil
+                )
+                _ = try await SupabaseManager.shared.client.auth.signInWithIdToken(credentials: credentials)
+                await handlePostSignIn()
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
     }
     
     func continueWithApple() {
@@ -184,6 +169,122 @@ final class AuthViewModel: ObservableObject {
             verificationTimer = nil
         }
     }
+
+    func pollForEmailVerification(completion: @escaping () -> Void) {
+        verificationTimer?.invalidate()
+        verificationTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            Task { [weak self] in
+                guard let self = self else { return }
+                do {
+                    let session = try await SupabaseManager.shared.client.auth.session
+                    let user = session.user
+                    if user.emailConfirmedAt != nil {
+                        await MainActor.run {
+                            self.verificationTimer?.invalidate()
+                            completion()
+                        }
+                    }
+                } catch {
+                    // Ignore errors, keep polling
+                }
+            }
+        }
+    }
+
+    func signUpWithEmailPassword() async {
+        guard isEmailValid else {
+            errorMessage = "Please enter a valid email address."
+            return
+        }
+        // Password must be at least 6 characters, at least 2 letters, at least 2 numbers
+        let letterCount = password.reduce(0) { $0 + ($1.isLetter ? 1 : 0) }
+        let numberCount = password.reduce(0) { $0 + ($1.isNumber ? 1 : 0) }
+        guard password.count >= 6, letterCount >= 2, numberCount >= 2 else {
+            errorMessage = "Password must be at least 6 characters, with at least 2 letters and 2 numbers."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            let session = try await SupabaseManager.shared.client.auth.signUp(email: email, password: password)
+            // Insert partial profile with setup_comp = "N"
+            let userId = session.user.id.uuidString
+            let partialProfile = UserProfile(
+                id: userId,
+                email: email,
+                first_name: "",
+                last_name: "",
+                user_name: nil,
+                date_of_birth: "",
+                gender: "",
+                created_at: nil,
+                region: nil,
+                setup_comp: "N"
+            )
+            do {
+                _ = try await SupabaseManager.shared.client
+                    .from("profiles")
+                    .upsert(partialProfile)
+                    .execute()
+            } catch {
+                print("[DEBUG] Failed to insert partial profile: \(error)")
+            }
+            NotificationCenter.default.post(name: .proceedToOnboarding, object: nil)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    func signInWithEmailPassword() async {
+        guard isEmailValid else {
+            errorMessage = "Please enter a valid email address."
+            return
+        }
+        guard !password.isEmpty else {
+            errorMessage = "Please enter your password."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            _ = try await SupabaseManager.shared.client.auth.signIn(email: email, password: password)
+            await handlePostSignIn()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    func resendVerificationEmail() async {
+        do {
+            try await SupabaseManager.shared.client.auth.resend(
+                email: self.email,
+                type: .signup,
+                emailRedirectTo: nil,
+                captchaToken: nil
+            )
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to resend verification email. Please try again later."
+            }
+        }
+    }
+
+    func deleteCurrentUserProfileIfNotComplete() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id.uuidString
+            _ = try await SupabaseManager.shared.client
+                .from("profiles")
+                .delete()
+                .eq("id", value: userId)
+                .neq("setup_comp", value: "Y")
+                .execute()
+        } catch {
+            print("[DEBUG] Failed to delete partial profile: \(error)")
+        }
+    }
 }
 
 // MARK: - Apple Sign In Coordinator
@@ -232,6 +333,8 @@ struct UserProfile: Codable {
     let date_of_birth: String
     let gender: String
     let created_at: String?
+    let region: String?
+    let setup_comp: String?
     // Add other fields as needed
 }
 

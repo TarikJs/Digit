@@ -3,6 +3,7 @@ import SwiftUI
 enum AuthState {
     case auth
     case onboarding
+    case waitingForVerification
     case main
 }
 
@@ -28,32 +29,63 @@ final class AuthCoordinator: ObservableObject {
         proceedToOnboarding()
     }
     
-    @ViewBuilder
+    @MainActor
     func makeCurrentView() -> some View {
         switch currentState {
         case .auth:
-            AuthView()
-                .environmentObject(self)
-                .environmentObject(authViewModel)
+            return AnyView(
+                AuthView()
+                    .environmentObject(self)
+                    .environmentObject(authViewModel)
+            )
         case .onboarding:
-            OnboardingView(viewModel: OnboardingViewModel(
+            let onboardingVM = OnboardingViewModel(
+                email: authViewModel.email,
+                isEmailVerified: false,
+                authViewModel: authViewModel,
                 onComplete: { [weak self] in
-                    withAnimation {
-                        self?.currentState = .main
+                    Task { [weak self] in
+                        await self?.handleOnboardingCompletion()
                     }
                 },
-                onDismiss: { [weak self] in
-                    withAnimation {
-                        self?.currentState = .auth
+                onDismiss: { } // Temporary placeholder
+            )
+            onboardingVM.onDismiss = { [weak self, weak onboardingVM] in
+                Task {
+                    await onboardingVM?.deletePartialProfileIfAbandoned()
+                    await MainActor.run {
+                        withAnimation {
+                            self?.currentState = .auth
+                        }
                     }
                 }
-            ))
-            .environmentObject(self)
-            .environmentObject(authViewModel)
-        case .main:
-            MainTabView()
+            }
+            return AnyView(
+                OnboardingView(viewModel: onboardingVM)
+                    .onAppear {
+                        Task { await onboardingVM.markProfileInWork() }
+                    }
+                    .environmentObject(self)
+                    .environmentObject(authViewModel)
+            )
+        case .waitingForVerification:
+            return AnyView(
+                WaitingForEmailVerificationView(onCancel: { [weak self] in
+                    Task { [weak self] in
+                        await self?.handleVerificationCancel()
+                    }
+                }, onVerified: { [weak self] in
+                    self?.currentState = .main
+                })
                 .environmentObject(self)
                 .environmentObject(authViewModel)
+            )
+        case .main:
+            return AnyView(
+                MainTabView()
+                    .environmentObject(self)
+                    .environmentObject(authViewModel)
+            )
         }
     }
     
@@ -66,6 +98,29 @@ final class AuthCoordinator: ObservableObject {
     func proceedToMain() {
         withAnimation {
             currentState = .main
+        }
+    }
+}
+
+extension AuthCoordinator {
+    @MainActor
+    func handleOnboardingCompletion() async {
+        if await authViewModel.isEmailVerified() {
+            withAnimation {
+                currentState = .main
+            }
+        } else {
+            withAnimation {
+                currentState = .waitingForVerification
+            }
+        }
+    }
+
+    @MainActor
+    func handleVerificationCancel() async {
+        authViewModel.stopVerificationPolling()
+        withAnimation {
+            currentState = .auth
         }
     }
 } 

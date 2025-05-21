@@ -18,7 +18,6 @@ final class NewHabitViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published var name: String = ""
-    @Published var description: String = ""
     @Published var goalPerDay: Int = 1
     let minGoal: Int = 1
     let maxGoal: Int = 100
@@ -32,9 +31,40 @@ final class NewHabitViewModel: ObservableObject {
     @Published var repeatFrequency: RepeatFrequency = .daily
     @Published var selectedWeekdays: Set<Int> = []
     @Published var errorMessage: String? = nil
+    @Published var availableUnits: [String] = []
+    @Published var selectedUnit: String? = nil
     
     // MARK: - Save Callback
     var onSave: ((Bool) -> Void)?
+    
+    private let measurementTypeService: MeasurementTypeServiceProtocol
+    
+    init(measurementTypeService: MeasurementTypeServiceProtocol = MeasurementTypeService()) {
+        self.measurementTypeService = measurementTypeService
+    }
+    
+    // Fetch units when name changes
+    func onNameChanged() async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            availableUnits = []
+            selectedUnit = nil
+            return
+        }
+        do {
+            let types = try await measurementTypeService.fetchMeasurementTypes(for: trimmed, region: "us")
+            let units = Array(Set(types.map { $0.unit })).sorted()
+            await MainActor.run {
+                self.availableUnits = units
+                self.selectedUnit = units.first
+            }
+        } catch {
+            await MainActor.run {
+                self.availableUnits = []
+                self.selectedUnit = nil
+            }
+        }
+    }
     
     // MARK: - Computed Properties
     var canSave: Bool {
@@ -52,14 +82,14 @@ final class NewHabitViewModel: ObservableObject {
         defer { isSaving = false }
         await habitViewModel.createNewHabit(
             name: name,
-            description: description.isEmpty ? nil : description,
             dailyGoal: goalPerDay,
             icon: selectedIcon?.systemName ?? "",
             startDate: startDate,
             endDate: endDate,
             repeatFrequency: repeatFrequency.rawValue,
             weekdays: repeatFrequency == .custom ? Array(selectedWeekdays) : nil,
-            reminderTime: alertEnabled ? formattedTime(alertTime) : nil
+            reminderTime: alertEnabled ? formattedTime(alertTime) : nil,
+            unit: selectedUnit
         )
         if habitViewModel.errorMessage == nil {
             onSave?(true)

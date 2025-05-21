@@ -29,22 +29,12 @@ private func setupTabBarAppearance() {
 
 // MARK: - AppCoordinator
 
-final class AppCoordinator: ObservableObject, SplashCoordinatorDelegate {
-    @Published var showSplash: Bool = true
+final class AppCoordinator: ObservableObject {
     @Published var showOnboarding: Bool = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
-    let splashCoordinator = SplashCoordinator()
-
     init() {
-        splashCoordinator.delegate = self
         showOnboarding = !hasCompletedOnboarding
-    }
-
-    func splashDidFinish() {
-        withAnimation {
-            showSplash = false
-        }
     }
 
     func completeOnboarding() {
@@ -73,6 +63,7 @@ struct DigitApp: App {
             coordinator.makeCurrentView()
                 .environmentObject(coordinator)
                 .environmentObject(authViewModel)
+                .environment(\.font, .plusJakartaSans(size: 17))
                 .onOpenURL { url in
                     print("[DEBUG] Received deep link: \(url)")
                     SupabaseManager.shared.client.auth.handle(url)

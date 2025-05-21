@@ -103,14 +103,14 @@ struct HabitView: View {
                     Task {
                         await viewModel.createNewHabit(
                             name: name,
-                            description: nil,
                             dailyGoal: 1,
                             icon: "figure.walk", // placeholder
                             startDate: Date(),
                             endDate: nil,
                             repeatFrequency: "daily",
                             weekdays: nil,
-                            reminderTime: nil
+                            reminderTime: nil,
+                            unit: nil
                         )
                     }
                 }

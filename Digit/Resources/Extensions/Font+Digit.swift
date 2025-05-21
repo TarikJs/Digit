@@ -40,4 +40,39 @@ extension Font {
     
     /// Extra small icon size (16pt)
     static let digitIconExtraSmall = Font.system(size: 16)
-} 
+}
+
+// MARK: - Plus Jakarta Sans Font Extension
+extension Font {
+    /// Returns Plus Jakarta Sans with the specified size and weight.
+    static func plusJakartaSans(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        let fontName: String
+        switch weight {
+        case .ultraLight: fontName = "PlusJakartaSans-ExtraLight"
+        case .thin: fontName = "PlusJakartaSans-ExtraLight"
+        case .light: fontName = "PlusJakartaSans-Light"
+        case .regular: fontName = "PlusJakartaSans-Regular"
+        case .medium: fontName = "PlusJakartaSans-Medium"
+        case .semibold: fontName = "PlusJakartaSans-SemiBold"
+        case .bold: fontName = "PlusJakartaSans-Bold"
+        case .heavy: fontName = "PlusJakartaSans-ExtraBold"
+        case .black: fontName = "PlusJakartaSans-ExtraBold"
+        default: fontName = "PlusJakartaSans-Regular"
+        }
+        return .custom(fontName, size: size)
+    }
+
+    // Common weights for convenience
+    static func plusJakartaRegular(size: CGFloat) -> Font {
+        .custom("PlusJakartaSans-Regular", size: size)
+    }
+    static func plusJakartaMedium(size: CGFloat) -> Font {
+        .custom("PlusJakartaSans-Medium", size: size)
+    }
+    static func plusJakartaSemiBold(size: CGFloat) -> Font {
+        .custom("PlusJakartaSans-SemiBold", size: size)
+    }
+    static func plusJakartaBold(size: CGFloat) -> Font {
+        .custom("PlusJakartaSans-Bold", size: size)
+    }
+}

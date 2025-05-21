@@ -15,6 +15,8 @@ extension StatsViewModel.HabitCalendarDay: HabitCalendarDayProtocol {}
 
 struct StatsView: View {
     @StateObject private var viewModel: StatsViewModel
+    @State private var showDeleteAlert = false
+    @State private var habitToDelete: UUID? = nil
     
     // Dependency injection initializer
     init(habitService: HabitServiceProtocol = HabitService(), progressService: HabitProgressServiceProtocol = HabitProgressService(), userId: UUID? = nil) {
@@ -190,10 +192,31 @@ struct StatsView: View {
             VStack(spacing: 16) {
                 ForEach(viewModel.calendarData) { habit in
                     HabitCalendarCard(habit: habit)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                habitToDelete = habit.id
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                // Optionally implement stop logic here
+                            } label: {
+                                Label("Stop", systemImage: "pause.circle")
+                            }
+                        }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
+        }
+        .alert("Delete Habit?", isPresented: $showDeleteAlert, presenting: habitToDelete) { id in
+            Button("Delete", role: .destructive) {
+                Task { await viewModel.deleteHabit(id: id) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Are you sure you want to delete this habit? This action cannot be undone.")
         }
     }
     

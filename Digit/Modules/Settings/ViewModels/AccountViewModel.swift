@@ -55,7 +55,9 @@ final class AccountViewModel: ObservableObject {
             user_name: currentProfile.user_name,
             date_of_birth: currentProfile.date_of_birth,
             gender: currentProfile.gender,
-            created_at: currentProfile.created_at
+            created_at: currentProfile.created_at,
+            region: currentProfile.region,
+            setup_comp: currentProfile.setup_comp
         )
         do {
             try await profileService.updateProfile(currentProfile)

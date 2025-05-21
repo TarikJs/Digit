@@ -47,6 +47,8 @@ struct Habit: Identifiable, Codable, Equatable {
     let createdAt: Date
     /// Timestamp when the habit was last updated
     let updatedAt: Date
+    /// Optional unit of measurement for the habit
+    let unit: String?
 
     // MARK: - Coding Keys
     enum CodingKeys: String, CodingKey {
@@ -63,6 +65,7 @@ struct Habit: Identifiable, Codable, Equatable {
         case reminderTime = "reminder_time"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case unit
     }
 
     // Custom Decodable implementation to handle multiple date formats
@@ -110,6 +113,7 @@ struct Habit: Identifiable, Codable, Equatable {
         }
         createdAt = try decodeDate(forKey: .createdAt)
         updatedAt = try decodeDate(forKey: .updatedAt)
+        unit = try container.decodeIfPresent(String.self, forKey: .unit)
     }
 
     init(
@@ -125,7 +129,8 @@ struct Habit: Identifiable, Codable, Equatable {
         weekdays: [Int]? = nil,
         reminderTime: String? = nil,
         createdAt: Date = Date(),
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        unit: String? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -140,5 +145,6 @@ struct Habit: Identifiable, Codable, Equatable {
         self.reminderTime = reminderTime
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.unit = unit
     }
 } 

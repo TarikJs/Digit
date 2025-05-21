@@ -675,7 +675,9 @@ class DummyProfileService: ProfileServiceProtocol {
             user_name: nil,
             date_of_birth: "1990-01-01",
             gender: "female",
-            created_at: nil
+            created_at: nil,
+            region: nil,
+            setup_comp: nil
         )
     }
     func updateProfile(_ profile: UserProfile) async throws {

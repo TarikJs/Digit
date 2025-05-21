@@ -33,7 +33,6 @@ struct NewHabitView: View {
                         Divider().background(Color.digitDivider)
                         // Card content
                         VStack(alignment: .leading, spacing: 28) {
-                            descriptionSection
                             nameSection
                             Divider().background(Color.digitDivider)
                             goalSection
@@ -113,24 +112,9 @@ struct NewHabitView: View {
                 )
                 .foregroundStyle(Color.digitBrand)
                 .accessibilityLabel("Habit Name")
-        }
-    }
-    private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Description")
-                .font(.digitHeadline)
-                .foregroundStyle(Color.digitBrand)
-            TextField("Optional", text: $viewModel.description)
-                .font(.digitBody)
-                .padding(12)
-                .background(Color.white)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.digitBrand, lineWidth: 1.2)
-                )
-                .foregroundStyle(Color.digitBrand)
-                .accessibilityLabel("Description")
+                .onChange(of: viewModel.name) {
+                    Task { await viewModel.onNameChanged() }
+                }
         }
     }
     private var goalSection: some View {
@@ -144,6 +128,22 @@ struct NewHabitView: View {
                     .fontWeight(.semibold)
                     .font(.digitTitle2)
                     .foregroundStyle(Color.digitBrand)
+                if let unit = viewModel.selectedUnit, !unit.isEmpty {
+                    Text(unit)
+                        .font(.digitBody)
+                        .foregroundStyle(Color.digitBrand.opacity(0.7))
+                        .padding(.leading, 2)
+                        .transition(.opacity)
+                }
+                if !viewModel.availableUnits.isEmpty {
+                    Picker("Unit", selection: $viewModel.selectedUnit) {
+                        ForEach(viewModel.availableUnits, id: \ .self) { unit in
+                            Text(unit).tag(unit as String?)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    .frame(width: 80)
+                }
             }
             HStack(spacing: 0) {
                 Button(action: {

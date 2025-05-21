@@ -153,6 +153,8 @@ final class HomeViewModel: ObservableObject {
     private func loadInitialData() {
         Task {
             await loadHabitsAndProgressForVisibleDates()
+            await migrateHabitUnitsIfNeeded()
+            await loadHabitsAndProgressForVisibleDates()
         }
     }
     
@@ -332,5 +334,60 @@ final class HomeViewModel: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter.string(from: utcCalendar.startOfDay(for: date))
+    }
+
+    /// One-time migration: For any habit missing a unit, update it using measurement_type and user region.
+    private func migrateHabitUnitsIfNeeded() async {
+        let userRegion: String
+        // Replace with actual region fetch logic if available
+        if let region = try? await SupabaseProfileService().fetchProfile().region {
+            userRegion = region ?? "us"
+        } else {
+            userRegion = "us"
+        }
+        let measurementService = MeasurementTypeService()
+        for habit in habits {
+            if habit.unit == nil || habit.unit?.isEmpty == true {
+                do {
+                    let types = try await measurementService.fetchMeasurementTypes(for: habit.name, region: userRegion)
+                    if let newUnit = types.first?.unit {
+                        let updatedHabit = Habit(
+                            id: habit.id,
+                            userId: habit.userId,
+                            name: habit.name,
+                            description: habit.description,
+                            dailyGoal: habit.dailyGoal,
+                            icon: habit.icon,
+                            startDate: habit.startDate,
+                            endDate: habit.endDate,
+                            repeatFrequency: habit.repeatFrequency,
+                            weekdays: habit.weekdays,
+                            reminderTime: habit.reminderTime,
+                            createdAt: habit.createdAt,
+                            updatedAt: Date(),
+                            unit: newUnit
+                        )
+                        try? await habitService.updateHabit(updatedHabit)
+                    }
+                } catch {
+                    print("[MIGRATION] Failed to update unit for habit \(habit.name): \(error)")
+                }
+            }
+        }
+    }
+
+    /// Deletes a habit from the list and backend
+    func deleteHabit(_ habit: Habit) {
+        // Remove from local list immediately for responsive UI
+        habits.removeAll { $0.id == habit.id }
+        Task {
+            do {
+                try await habitService.deleteHabit(id: habit.id)
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to delete habit: \(error.localizedDescription)"
+                }
+            }
+        }
     }
 } 

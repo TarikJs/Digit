@@ -14,6 +14,9 @@ extension Color {
     /// Official accent color 2 (#F3DAFF)
     static let digitAccent2 = Color(hex: "F3DAFF")
     
+    /// Official accent color red (#FC351C)
+    static let digitAccentRed = Color(hex: "FC351C")
+
     /// Color for outline elements (same as brand color)
     static let digitOutlineBlue = digitBrand
     

@@ -123,7 +123,7 @@
 					};
 				};
 			};
-			buildConfigurationList = DCA803B12DCA76D100028F5D /* Build configuration list for PBXProject "Digit" */;
+			buildConfigurationList = DCA803B12DCA76D100028F5D /* Build configuration list for PBXProject "TinyDos" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -352,7 +352,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		DCA803B12DCA76D100028F5D /* Build configuration list for PBXProject "Digit" */ = {
+		DCA803B12DCA76D100028F5D /* Build configuration list for PBXProject "TinyDos" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DCA803BF2DCA76D200028F5D /* Debug */,

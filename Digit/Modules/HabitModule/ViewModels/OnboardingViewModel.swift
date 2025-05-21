@@ -29,7 +29,21 @@ final class OnboardingViewModel: ObservableObject {
     @Published var dateOfBirth: Date = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     @Published var selectedGender: Gender?
     @Published var habitGoal: String = ""
-    @Published var notificationsEnabled: Bool = false
+    @Published var notificationsEnabled: Bool = false {
+        didSet {
+            if notificationsEnabled {
+                Task {
+                    let notificationService = NotificationService(progressService: HabitProgressService())
+                    let granted = await notificationService.requestNotificationPermissions()
+                    if !granted {
+                        await MainActor.run {
+                            notificationsEnabled = false
+                        }
+                    }
+                }
+            }
+        }
+    }
     @Published var errorMessage: String?
     @Published var userName: String = ""
     @Published var isCheckingUserName = false

@@ -2,11 +2,17 @@ import SwiftUI
 
 // MARK: - View
 struct NewHabitView: View {
-    // MARK: - Padding Constants
-    private static let horizontalPadding: CGFloat = 16
-    private static let verticalPadding: CGFloat = 8
-    private static let cardPadding: CGFloat = 20
-    private static let cardVerticalPadding: CGFloat = 24
+    // MARK: - Layout Constants
+    private enum Layout {
+        static let cardPadding: CGFloat = 20
+        static let cardVerticalPadding: CGFloat = 24
+        static let buttonHeight: CGFloat = 48
+        static let cornerRadius: CGFloat = 12
+        static let iconSize: CGFloat = 60
+        static let shadowOpacity: CGFloat = 0.08
+        static let shadowRadius: CGFloat = 2
+        static let shadowY: CGFloat = 1
+    }
 
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var homeViewModel: HomeViewModel
@@ -36,26 +42,26 @@ struct NewHabitView: View {
                             nameSection
                             Divider().background(Color.digitDivider)
                             goalSection
-                                .padding(.vertical, Self.verticalPadding)
+                                .padding(.vertical, Layout.cardVerticalPadding)
                             Divider().background(Color.digitDivider)
                             scheduleSection
-                                .padding(.vertical, Self.verticalPadding)
+                                .padding(.vertical, Layout.cardVerticalPadding)
                             Divider().background(Color.digitDivider)
                             alertSection
-                                .padding(.vertical, Self.verticalPadding)
+                                .padding(.vertical, Layout.cardVerticalPadding)
                             Divider().background(Color.digitDivider)
                             iconPickerSection
-                                .padding(.vertical, Self.verticalPadding)
+                                .padding(.vertical, Layout.cardVerticalPadding)
                             saveButtonSection
-                                .padding(.vertical, Self.verticalPadding)
+                                .padding(.vertical, Layout.cardVerticalPadding)
                         }
-                        .padding(Self.cardPadding)
+                        .padding(Layout.cardPadding)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
                                 .fill(Color.white)
                                 .shadow(color: Color.black.opacity(0.03), radius: 8, y: 2)
                         )
-                        .padding(.vertical, Self.cardVerticalPadding)
+                        .padding(.vertical, Layout.cardVerticalPadding)
                     }
                 }
             }
@@ -77,39 +83,55 @@ struct NewHabitView: View {
 
     // MARK: - Subviews
     private var titleAndCancel: some View {
-        HStack {
-            Text("New Habit")
-                .font(.digitTitle2)
-                .foregroundStyle(Color.white)
-            Spacer()
-            if !hideCancelButton {
-            Button("Cancel") {
-                onDismiss()
-            }
-            .font(.digitBody)
-            .foregroundStyle(Color.white)
-            .accessibilityLabel("Cancel")
-            }
+        VStack(spacing: 0) {
+            Color.digitBrand
+                .frame(height: 40)
+                .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
+                .overlay(
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.digitAccentRed)
+                            .frame(width: 4, height: 24)
+                        Text("New Habit")
+                            .font(.plusJakartaSans(size: 22, weight: .bold))
+                            .foregroundStyle(Color.white)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityLabel("New Habit")
+                        Spacer()
+                        if !hideCancelButton {
+                            Button("Cancel") {
+                                onDismiss()
+                            }
+                            .font(.plusJakartaSans(size: 17, weight: .regular))
+                            .foregroundStyle(Color.white)
+                            .accessibilityLabel("Cancel")
+                        }
+                    }
+                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                )
+                .overlay(
+                    Divider()
+                        .background(Color.digitDivider), alignment: .bottom
+                )
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+                .zIndex(1)
         }
-        .padding(.vertical, 18)
-        .padding(.horizontal, Self.horizontalPadding)
-        .frame(maxWidth: .infinity)
-        .background(Color.digitBrand.edgesIgnoringSafeArea(.top))
+        .background(Color.digitBrand)
     }
     private var nameSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Habit Name")
-                .font(.digitHeadline)
+                .font(.plusJakartaSans(size: 18, weight: .semibold))
                 .foregroundStyle(Color.digitBrand)
             TextField("e.g., Meditate", text: $viewModel.name)
-                .font(.digitBody)
-                .padding(12)
-                .background(Color.white)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.digitBrand, lineWidth: 1.2)
-                )
+                .font(.plusJakartaSans(size: 17, weight: .regular))
+                .padding(.horizontal, 16)
+                .frame(height: 56)
+                .background(Color.digitGrayLight)
+                .cornerRadius(10)
+                .disableAutocorrection(true)
                 .foregroundStyle(Color.digitBrand)
                 .accessibilityLabel("Habit Name")
                 .onChange(of: viewModel.name) {
@@ -121,78 +143,76 @@ struct NewHabitView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Set a daily goal")
-                    .font(.digitHeadline)
+                    .font(.plusJakartaSans(size: 18, weight: .semibold))
                     .foregroundStyle(Color.digitBrand)
                 Spacer()
-                Text("\(viewModel.goalPerDay)")
-                    .fontWeight(.semibold)
-                    .font(.digitTitle2)
-                    .foregroundStyle(Color.digitBrand)
-                if let unit = viewModel.selectedUnit, !unit.isEmpty {
-                    Text(unit)
-                        .font(.digitBody)
-                        .foregroundStyle(Color.digitBrand.opacity(0.7))
-                        .padding(.leading, 2)
-                        .transition(.opacity)
-                }
-                if !viewModel.availableUnits.isEmpty {
-                    Picker("Unit", selection: $viewModel.selectedUnit) {
-                        ForEach(viewModel.availableUnits, id: \ .self) { unit in
-                            Text(unit).tag(unit as String?)
-                        }
-                    }
-                    .pickerStyle(MenuPickerStyle())
-                    .frame(width: 80)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(viewModel.goalPerDay)")
+                        .font(.plusJakartaSans(size: 20, weight: .bold))
+                        .foregroundStyle(Color.digitBrand)
+                    Text(viewModel.selectedUnit ?? "times")
+                        .font(.plusJakartaSans(size: 20, weight: viewModel.selectedUnit == nil ? .regular : .bold))
+                        .foregroundStyle(viewModel.selectedUnit == nil ? Color.digitBrand.opacity(0.5) : Color.digitBrand)
                 }
             }
             HStack(spacing: 0) {
-                Button(action: {
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-                    if viewModel.goalPerDay > viewModel.minGoal {
-                        viewModel.goalPerDay -= 1
-                    }
-                }) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.digitBrand)
-                        .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
-                        .background(Color.white)
-                        .overlay(
-                            RoundedCorners(tl: 12, tr: 0, bl: 12, br: 0)
-                                .stroke(Color.digitBrand, lineWidth: 2)
-                        )
-                        .clipShape(RoundedCorners(tl: 12, tr: 0, bl: 12, br: 0))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel("Decrease goal")
-                .opacity(viewModel.goalPerDay > viewModel.minGoal ? 1.0 : 0.5)
-                Button(action: {
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-                    if viewModel.goalPerDay < viewModel.maxGoal {
-                        viewModel.goalPerDay += 1
-                    }
-                }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
-                        .background(Color.digitBrand)
-                        .clipShape(RoundedCorners(tl: 0, tr: 12, bl: 0, br: 12))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel("Increase goal")
-                .opacity(viewModel.goalPerDay < viewModel.maxGoal ? 1.0 : 0.5)
+                goalButton(isIncrement: false)
+                goalButton(isIncrement: true)
             }
             .background(Color.digitGrayLight)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous))
         }
     }
+
+    private func goalButton(isIncrement: Bool) -> some View {
+        Button(action: {
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+            if isIncrement {
+                if viewModel.goalPerDay < viewModel.maxGoal {
+                    viewModel.goalPerDay += 1
+                }
+            } else {
+                if viewModel.goalPerDay > viewModel.minGoal {
+                    viewModel.goalPerDay -= 1
+                }
+            }
+        }) {
+            ZStack {
+                isIncrement ? Color.digitAccentRed : Color.white
+                Image(systemName: isIncrement ? "plus" : "minus")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(isIncrement ? Color.white : Color.digitAccentRed)
+                if !isIncrement {
+                    RoundedCorners(tl: Layout.cornerRadius, tr: 0, bl: Layout.cornerRadius, br: 0)
+                        .stroke(Color.digitAccentRed, lineWidth: 2.5)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: Layout.buttonHeight, maxHeight: Layout.buttonHeight)
+            .clipShape(RoundedCorners(
+                tl: isIncrement ? 0 : Layout.cornerRadius,
+                tr: isIncrement ? Layout.cornerRadius : 0,
+                bl: isIncrement ? 0 : Layout.cornerRadius,
+                br: isIncrement ? Layout.cornerRadius : 0
+            ))
+            .shadow(
+                color: Color.black.opacity(Layout.shadowOpacity),
+                radius: Layout.shadowRadius,
+                y: Layout.shadowY
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(isIncrement ? "Increase goal" : "Decrease goal")
+        .opacity(isIncrement ? 
+            (viewModel.goalPerDay < viewModel.maxGoal ? 1.0 : 0.5) :
+            (viewModel.goalPerDay > viewModel.minGoal ? 1.0 : 0.5)
+        )
+    }
+
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Schedule")
-                .font(.digitHeadline)
+                .font(.plusJakartaSans(size: 18, weight: .semibold))
                 .foregroundStyle(Color.digitBrand)
             datePickersSection
             repeatFrequencySection
@@ -207,22 +227,21 @@ struct NewHabitView: View {
         VStack(spacing: 10) {
             HStack(alignment: .center, spacing: 16) {
                 Text("Start Date")
-                    .font(.digitBody)
+                    .font(.plusJakartaSans(size: 16, weight: .regular))
                     .foregroundStyle(Color.digitBrand)
                 Spacer()
                 DatePicker("Start Date", selection: $viewModel.startDate, displayedComponents: .date)
                     .labelsHidden()
-                    .font(.digitBody)
+                    .font(.plusJakartaSans(size: 16, weight: .regular))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white)
-                    .cornerRadius(10)
                     .foregroundStyle(Color.digitBrand)
-                    .tint(Color.digitProgressGreen4)
+                    .tint(Color.digitAccentRed)
             }
             HStack(alignment: .center, spacing: 16) {
                 Text("End Date")
-                    .font(.digitBody)
+                    .font(.plusJakartaSans(size: 16, weight: .regular))
                     .foregroundStyle(Color.digitBrand)
                 Spacer()
                 DatePicker("End Date", selection: Binding(
@@ -230,13 +249,13 @@ struct NewHabitView: View {
                     set: { viewModel.endDate = $0 }
                 ), in: viewModel.startDate..., displayedComponents: .date)
                     .labelsHidden()
-                    .font(.digitBody)
+                    .font(.plusJakartaSans(size: 16, weight: .regular))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white)
                     .cornerRadius(10)
                     .foregroundStyle(Color.digitBrand)
-                    .tint(Color.digitProgressGreen4)
+                    .tint(Color.digitAccentRed)
                     .accessibilityLabel("End Date")
                     .onChange(of: viewModel.endDate) { _, newValue in
                         if let end = newValue, end < viewModel.startDate {
@@ -251,20 +270,18 @@ struct NewHabitView: View {
     private var repeatFrequencySection: some View {
         HStack(spacing: 8) {
             ForEach(NewHabitViewModel.RepeatFrequency.allCases) { freq in
-                Button(action: { viewModel.repeatFrequency = freq }) {
+                let isSelected = viewModel.repeatFrequency == freq
+                Button(action: { withAnimation(.easeInOut(duration: 0.15)) { viewModel.repeatFrequency = freq } }) {
                     Text(freq.rawValue)
-                        .font(.digitBody)
-                        .fontWeight(viewModel.repeatFrequency == freq ? .bold : .regular)
-                        .foregroundStyle(viewModel.repeatFrequency == freq ? Color.white : Color.digitBrand)
+                        .font(.plusJakartaSans(size: 16, weight: .semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(viewModel.repeatFrequency == freq ? Color.digitBrand : Color.white)
+                        .background(isSelected ? Color.digitAccentRed : Color.digitGrayLight)
                         .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.digitBrand, lineWidth: 1.2)
-                        )
+                        .shadow(color: isSelected ? Color.digitAccentRed.opacity(0.10) : .clear, radius: 2, y: 1)
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel(freq.rawValue)
             }
         }
@@ -282,25 +299,23 @@ struct NewHabitView: View {
             HStack(spacing: 6) {
                 ForEach(Array(1...7), id: \.self) { weekday in
                     let symbol = daySymbols[weekday - 1]
+                    let isSelected = viewModel.selectedWeekdays.contains(weekday)
                     Button(action: {
-                        if viewModel.selectedWeekdays.contains(weekday) {
+                        if isSelected {
                             viewModel.selectedWeekdays.remove(weekday)
                         } else {
                             viewModel.selectedWeekdays.insert(weekday)
                         }
                     }) {
                         Text(symbol)
-                            .font(.digitBody)
-                            .fontWeight(.semibold)
+                            .font(.plusJakartaSans(size: 15, weight: .semibold))
                             .frame(width: buttonWidth, height: 36)
-                            .background(viewModel.selectedWeekdays.contains(weekday) ? Color.digitBrand : Color.white)
-                            .foregroundStyle(viewModel.selectedWeekdays.contains(weekday) ? Color.white : Color.digitBrand)
+                            .background(isSelected ? Color.digitAccentRed : Color.digitGrayLight)
+                            .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
                             .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.digitBrand, lineWidth: 1.2)
-                            )
+                            .shadow(color: isSelected ? Color.digitAccentRed.opacity(0.10) : .clear, radius: 1, y: 1)
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel(symbol)
                 }
             }
@@ -311,15 +326,16 @@ struct NewHabitView: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $viewModel.alertEnabled) {
                 Text("Enable alert/reminder")
-                    .font(.digitHeadline)
+                    .font(.plusJakartaSans(size: 18, weight: .semibold))
                     .foregroundStyle(Color.digitBrand)
             }
             .toggleStyle(BrandSwitchToggleStyle())
             .accessibilityLabel("Enable alert/reminder")
             if viewModel.alertEnabled {
                 DatePicker("Alert Time", selection: $viewModel.alertTime, displayedComponents: .hourAndMinute)
-                    .font(.digitBody)
+                    .font(.plusJakartaSans(size: 16, weight: .regular))
                     .foregroundStyle(Color.digitBrand)
+                    .tint(Color.digitAccentRed)
                     .accessibilityLabel("Alert Time")
             }
         }
@@ -327,7 +343,7 @@ struct NewHabitView: View {
     private var iconPickerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Choose an icon")
-                .font(.digitHeadline)
+                .font(.plusJakartaSans(size: 18, weight: .semibold))
                 .foregroundStyle(Color.digitBrand)
             // Curated, valid SF Symbols for habits (iOS 18+)
             let allIcons: [NewHabitViewModel.Icon] = [
@@ -400,20 +416,21 @@ struct NewHabitView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(allIcons) { icon in
+                        let isSelected = viewModel.selectedIcon == icon
                         Button(action: { viewModel.selectedIcon = icon }) {
                             ZStack {
-                                (viewModel.selectedIcon == icon ? Color.digitBrand : Color.white)
+                                (isSelected ? Color.digitAccentRed : Color.digitGrayLight)
                                     .cornerRadius(16)
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.digitBrand, lineWidth: 2)
                                 Image(systemName: icon.systemName)
                                     .resizable()
                                     .scaledToFit()
-                                    .foregroundStyle(viewModel.selectedIcon == icon ? Color.white : Color.digitBrand)
+                                    .foregroundStyle(isSelected ? Color.white : Color.digitBrand)
                                     .padding(14)
                             }
                             .frame(width: 60, height: 60)
+                            .shadow(color: isSelected ? Color.digitAccentRed.opacity(0.10) : .clear, radius: 2, y: 1)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel(icon.systemName)
                     }
                 }
@@ -433,13 +450,18 @@ struct NewHabitView: View {
                         .progressViewStyle(.circular)
                 }
                 Text("Save Habit")
-                    .font(.digitHeadline)
+                    .font(.plusJakartaSans(size: 18, weight: .semibold))
                     .foregroundStyle(Color.white)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(viewModel.canSave ? Color.digitBrand : Color.digitBrand.opacity(0.4))
-            .cornerRadius(14)
+            .background(viewModel.canSave ? Color.digitAccentRed : Color.digitAccentRed.opacity(0.4))
+            .cornerRadius(Layout.cornerRadius)
+            .shadow(
+                color: Color.black.opacity(Layout.shadowOpacity),
+                radius: Layout.shadowRadius,
+                y: Layout.shadowY
+            )
         }
         .disabled(!viewModel.canSave || viewModel.isLoading || viewModel.isSaving)
         .padding(.top, 8)
@@ -452,19 +474,13 @@ struct NewHabitView: View {
             }
         }
     }
-
-    private func formattedTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - Brand Switch Toggle Style
 struct BrandSwitchToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Toggle(configuration)
-            .tint(Color.digitBrand)
+            .tint(Color.digitAccentRed)
     }
 }
 

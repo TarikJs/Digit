@@ -46,19 +46,39 @@ final class NewHabitViewModel: ObservableObject {
     // Fetch units when name changes
     func onNameChanged() async {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        // print("[DEBUG] onNameChanged called with name: '\(name)', trimmed: '\(trimmed)'")
+        
         guard !trimmed.isEmpty else {
-            availableUnits = []
-            selectedUnit = nil
+            // print("[DEBUG] Name is empty, clearing units")
+            await MainActor.run {
+                self.availableUnits = []
+                self.selectedUnit = nil
+            }
             return
         }
+        
         do {
+            // print("[DEBUG] Fetching measurement types for '\(trimmed)'")
             let types = try await measurementTypeService.fetchMeasurementTypes(for: trimmed, region: "us")
+            // print("[DEBUG] Received measurement types:", types.map { "habit: '\($0.habit)', unit: '\($0.unit)'" })
+            
             let units = Array(Set(types.map { $0.unit })).sorted()
+            // print("[DEBUG] Available units:", units)
+            // print("[DEBUG] Current selectedUnit:", selectedUnit ?? "nil")
+            
             await MainActor.run {
                 self.availableUnits = units
-                self.selectedUnit = units.first
+                // Always use the unit from the highest scoring (first) measurement type
+                if let bestUnit = types.first?.unit {
+                    self.selectedUnit = bestUnit
+                    // print("[DEBUG] Updated selectedUnit to best match: '\(bestUnit)'")
+                } else {
+                    self.selectedUnit = units.first
+                    // print("[DEBUG] No best match found, using first unit: '\(self.selectedUnit ?? "nil")'")
+                }
             }
         } catch {
+            // print("[DEBUG] Error fetching units:", error)
             await MainActor.run {
                 self.availableUnits = []
                 self.selectedUnit = nil

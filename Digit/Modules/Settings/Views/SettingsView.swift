@@ -53,7 +53,21 @@ struct LegalDocumentView: View {
 struct SettingsView: View {
     @EnvironmentObject private var authCoordinator: AuthCoordinator
     @EnvironmentObject private var accountViewModel: AccountViewModel
-    @State private var pushNotificationsEnabled = true
+    @State private var pushNotificationsEnabled = true {
+        didSet {
+            Task {
+                let notificationService = NotificationService(progressService: HabitProgressService())
+                if pushNotificationsEnabled {
+                    let granted = await notificationService.requestNotificationPermissions()
+                    if !granted {
+                        await MainActor.run {
+                            pushNotificationsEnabled = false
+                        }
+                    }
+                }
+            }
+        }
+    }
     @State private var legalSheet: LegalSheetType?
     @State private var isEditingProfile = false
     @State private var isBillingPresented = false

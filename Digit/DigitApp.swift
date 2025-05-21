@@ -1,6 +1,6 @@
 //
-//  DigitApp.swift
-//  Digit
+//  TinyDosApp.swift
+//  TinyDos
 //
 //  Created by Tarik Zukic on 5/6/25.
 //
@@ -46,22 +46,21 @@ final class AppCoordinator: ObservableObject {
 // MARK: - App Entry Point
 
 @main
-struct DigitApp: App {
+struct TinyDosApp: App {
     @UIApplicationDelegateAdaptor(PortraitAppDelegate.self) var appDelegate
-    @StateObject private var authViewModel: AuthViewModel
-    @StateObject private var coordinator: AuthCoordinator
+    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var authCoordinator: AuthCoordinator
 
     init() {
-        let authViewModel = AuthViewModel()
-        _authViewModel = StateObject(wrappedValue: authViewModel)
-        _coordinator = StateObject(wrappedValue: AuthCoordinator(authViewModel: authViewModel))
         setupTabBarAppearance()
+        let coordinator = AuthCoordinator(authViewModel: authViewModel)
+        _authCoordinator = StateObject(wrappedValue: coordinator)
     }
     
     var body: some Scene {
         WindowGroup {
-            coordinator.makeCurrentView()
-                .environmentObject(coordinator)
+            authCoordinator.makeCurrentView()
+                .environmentObject(authCoordinator)
                 .environmentObject(authViewModel)
                 .environment(\.font, .plusJakartaSans(size: 17))
                 .onOpenURL { url in

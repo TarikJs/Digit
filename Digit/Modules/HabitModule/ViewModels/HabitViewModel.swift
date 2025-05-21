@@ -5,6 +5,7 @@ import SwiftUI
 final class HabitViewModel: ObservableObject {
     private let habitService: HabitServiceProtocol
     private let userId: String
+    private let notificationService: NotificationServiceProtocol
     
     @Published var currentHabit: Habit?
     @Published var isLoading = false
@@ -16,9 +17,10 @@ final class HabitViewModel: ObservableObject {
     // Closure to notify on successful creation (e.g., to refresh HomeViewModel)
     var onHabitCreated: (() -> Void)?
     
-    init(habitService: HabitServiceProtocol, userId: String) {
+    init(habitService: HabitServiceProtocol, userId: String, notificationService: NotificationServiceProtocol = NotificationService()) {
         self.habitService = habitService
         self.userId = userId
+        self.notificationService = notificationService
     }
     
     func loadCurrentHabit() async {
@@ -67,6 +69,12 @@ final class HabitViewModel: ObservableObject {
                 unit: unit
             )
             try await habitService.addHabit(habit)
+            
+            // Schedule notification if reminder time is set
+            if reminderTime != nil {
+                await notificationService.scheduleHabitReminder(for: habit)
+            }
+            
             onHabitCreated?()
         } catch {
             errorMessage = "Failed to create habit: \(error.localizedDescription)"

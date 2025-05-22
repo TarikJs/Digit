@@ -20,10 +20,23 @@ public struct DigitHeaderView: View {
     public var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(name)
-                    .font(.digitTitle)
-                    .foregroundStyle(Color.digitBrand)
-                    .accessibilityAddTraits(.isHeader)
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                    .background(
+                        Circle().fill(Color.white)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Welcome back")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.digitSecondaryText)
+                    Text(name)
+                        .font(.digitTitle)
+                        .foregroundStyle(Color.digitBrand)
+                        .accessibilityAddTraits(.isHeader)
+                }
                 Spacer()
                 // Plus button
                 ZStack {

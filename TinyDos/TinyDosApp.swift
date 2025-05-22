@@ -33,7 +33,7 @@ final class AppCoordinator: ObservableObject {
     @Published var showOnboarding: Bool = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
-    init() {
+    init(authViewModel: AuthViewModel) {
         showOnboarding = !hasCompletedOnboarding
     }
 
@@ -48,12 +48,20 @@ final class AppCoordinator: ObservableObject {
 @main
 struct TinyDosApp: App {
     @UIApplicationDelegateAdaptor(PortraitAppDelegate.self) var appDelegate
-    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var authViewModel: AuthViewModel
     @StateObject private var authCoordinator: AuthCoordinator
+
+    // Static factory function to create both objects together
+    private static func makeAuthObjects() -> (AuthViewModel, AuthCoordinator) {
+        let authViewModel = AuthViewModel()
+        let authCoordinator = AuthCoordinator(authViewModel: authViewModel)
+        return (authViewModel, authCoordinator)
+    }
 
     init() {
         setupTabBarAppearance()
-        let coordinator = AuthCoordinator(authViewModel: authViewModel)
+        let (vm, coordinator) = Self.makeAuthObjects()
+        _authViewModel = StateObject(wrappedValue: vm)
         _authCoordinator = StateObject(wrappedValue: coordinator)
     }
     

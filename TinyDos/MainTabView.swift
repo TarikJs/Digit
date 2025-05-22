@@ -102,6 +102,14 @@ struct MainTabView: View {
                             .tag(1)
                             
                             NavigationView {
+                                AwardsView()
+                            }
+                            .tabItem {
+                                Label("Streaks", systemImage: "flame.fill")
+                            }
+                            .tag(2)
+                            
+                            NavigationView {
                                 SettingsView()
                                     .environmentObject(accountViewModel)
                                     .navigationBarHidden(true)
@@ -109,8 +117,9 @@ struct MainTabView: View {
                             .tabItem {
                                 Label("Settings", systemImage: "person.fill")
                             }
-                            .tag(2)
+                            .tag(3)
                         }
+                        .accentColor(Color.digitBrand)
                     }
                 }
                 .sheet(isPresented: $showNewHabitSheet) {

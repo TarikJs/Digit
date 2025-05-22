@@ -49,6 +49,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var isCheckingUserName = false
     @Published var selectedRegion: String? = nil
     @Published var isEmailVerified: Bool
+    let isSocialSignIn: Bool
     
     private let minimumAge = 18
     private let maximumAge = 100
@@ -100,7 +101,7 @@ final class OnboardingViewModel: ObservableObject {
         case .userName:
             return isUserNameValid
         case .email:
-            return isEmailVerified
+            return isEmailVerified || isSocialSignIn
         case .gender:
             return selectedGender != nil
         case .dateOfBirth:
@@ -143,9 +144,10 @@ final class OnboardingViewModel: ObservableObject {
         await authViewModel?.resendVerificationEmail()
     }
     
-    init(email: String = "", isEmailVerified: Bool = false, authViewModel: AuthViewModel? = nil, onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    init(email: String = "", isEmailVerified: Bool = false, isSocialSignIn: Bool = false, authViewModel: AuthViewModel? = nil, onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.email = email
         self.isEmailVerified = isEmailVerified
+        self.isSocialSignIn = isSocialSignIn
         self.authViewModel = authViewModel
         self.onComplete = onComplete
         self.onDismiss = onDismiss
@@ -181,7 +183,7 @@ final class OnboardingViewModel: ObservableObject {
         let first_name: String
         let last_name: String
         let user_name: String?
-        let date_of_birth: String
+        let date_of_birth: String?
         let gender: String
         let created_at: String?
         let region: String?
@@ -200,6 +202,7 @@ final class OnboardingViewModel: ObservableObject {
                   !session.user.id.uuidString.isEmpty else {
                 await MainActor.run {
                     self.errorMessage = "Authentication failed. Please try signing in again."
+                    print("[DEBUG] Early return: No valid session")
                 }
                 return
             }
@@ -210,48 +213,41 @@ final class OnboardingViewModel: ObservableObject {
             guard !email.isEmpty else {
                 await MainActor.run {
                     self.errorMessage = "Please enter a valid email address to continue."
+                    print("[DEBUG] Early return: Email is empty")
                 }
                 return
             }
-            
-            // Validate required fields
-            guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  let gender = selectedGender else {
-                print("Error: Missing required fields")
-                await MainActor.run { self.errorMessage = "Please fill in all required fields." }
-                onComplete()
-                return
+            // Relaxed: Allow empty names for debugging Apple Sign-In
+            if firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                selectedGender == nil {
+                print("[DEBUG] Warning: Missing required fields (firstName, lastName, or gender)")
             }
-            
+            let genderString = selectedGender?.rawValue ?? ""
             // Format date consistently
             let dateFormatter = ISO8601DateFormatter()
             dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            
             // Create profile with current timestamp
             let profile = UserProfile(
                 id: userId,
-                email: email.lowercased(), // Ensure email is lowercase for consistency
+                email: email.lowercased(),
                 first_name: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
                 last_name: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
                 user_name: userName.trimmingCharacters(in: .whitespacesAndNewlines),
                 date_of_birth: dateFormatter.string(from: dateOfBirth),
-                gender: gender.rawValue,
+                gender: genderString,
                 created_at: dateFormatter.string(from: Date()),
                 region: selectedRegion,
                 setup_comp: "Y"
             )
-            
-            print("Attempting to save profile: \(profile)")
-            
+            print("[DEBUG] Attempting to save profile: \(profile)")
             do {
                 let response = try await SupabaseManager.shared.client
                     .from("profiles")
                     .upsert(profile)
                     .execute()
-                print("Profile save response: \(response)")
+                print("[DEBUG] Profile save response: \(response)")
             }
-            
             // Send welcome email
             Task {
                 do {
@@ -259,18 +255,16 @@ final class OnboardingViewModel: ObservableObject {
                         to: email,
                         firstName: firstName.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
-                    
                     try await SupabaseManager.shared.client.functions.invoke(
                         "send-email",
                         options: .init(body: emailPayload)
                     )
-                    print("Welcome email sent successfully")
+                    print("[DEBUG] Welcome email sent successfully")
                 }
             }
-            
             onComplete()
         } catch {
-            print("Failed to save profile (outer catch): \(error)")
+            print("[DEBUG] Failed to save profile (outer catch): \(error)")
             await MainActor.run { self.errorMessage = "Failed to save your profile. Please try again." }
             onComplete()
         }
@@ -300,18 +294,17 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     private func checkBlockedUserNameAndProceed() async {
-        isCheckingUserName = true
-        errorMessage = nil
-        
+        await MainActor.run {
+            isCheckingUserName = true
+            errorMessage = nil
+        }
         do {
             let response = try await SupabaseManager.shared.client
                 .from("blocked_usernames")
                 .select()
                 .eq("user_name", value: userName.lowercased())
                 .execute()
-            
             let blockedUsernames = try JSONDecoder().decode([BlockedUserName].self, from: response.data)
-            
             await MainActor.run {
                 isCheckingUserName = false
                 if blockedUsernames.isEmpty {
@@ -339,7 +332,7 @@ final class OnboardingViewModel: ObservableObject {
                 first_name: firstName,
                 last_name: lastName,
                 user_name: userName,
-                date_of_birth: "",
+                date_of_birth: nil,
                 gender: "",
                 created_at: nil,
                 region: nil,

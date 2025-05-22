@@ -20,6 +20,8 @@ final class StatsViewModel: ObservableObject {
     @Published var calendarData: [HabitCalendarData] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
+    @Published var overallCompletionRate: Int = 0
+    @Published var avgChartCompletionRate: Int = 0
     
     // MARK: - Internal State
     private var habits: [Habit] = []
@@ -121,6 +123,9 @@ final class StatsViewModel: ObservableObject {
             var summary: [HabitStat] = []
             // For calendar cards
             var calendarCards: [HabitCalendarData] = []
+            // For overall completion rate
+            var totalCompletedHabitDays = 0
+            let totalTrackedHabitDays = habits.count * 90
             for habit in habits {
                 let habitId = habit.id
                 let progressList = try await progressService.fetchProgressForRange(userId: userId, habitId: habitId, startDate: startDate, endDate: now)
@@ -142,21 +147,48 @@ final class StatsViewModel: ObservableObject {
                     let percent = progress.goal > 0 ? min(Double(progress.progress) / Double(progress.goal), 1.0) : 0.0
                     dailyCompletion[day, default: 0.0] += percent
                 }
-                // For calendar cards: last 90 days
+                // For calendar cards: from habit.createdAt (or 90 days ago, whichever is later) to today
                 let calendarStart = calendar.date(byAdding: .day, value: -89, to: now) ?? now
-                let calendarProgress = try await progressService.fetchProgressForRange(userId: userId, habitId: habitId, startDate: calendarStart, endDate: now)
                 var days: [HabitCalendarDay] = []
                 for i in 0..<90 {
-                    let date = calendar.date(byAdding: .day, value: -i, to: now) ?? now
-                    if let progress = calendarProgress.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+                    let date = calendar.date(byAdding: .day, value: i, to: calendarStart) ?? calendarStart
+                    if date < habit.createdAt {
+                        days.append(HabitCalendarDay(date: date, progress: 0, goal: 0, isActive: false))
+                    } else if let progress = progressList.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
                         days.append(HabitCalendarDay(date: date, progress: progress.progress, goal: progress.goal, isActive: true))
                     } else {
                         days.append(HabitCalendarDay(date: date, progress: 0, goal: habit.dailyGoal, isActive: true))
                     }
                 }
-                let percentCompleted = Int((Double(days.filter { $0.progress >= $0.goal && $0.goal > 0 }.count) / 90.0) * 100)
-                calendarCards.append(HabitCalendarData(id: habit.id, icon: habit.icon, title: habit.name, percentCompleted: percentCompleted, days: days.reversed()))
+                let activeDays = days.filter { $0.isActive }
+                let completedHabitDays = activeDays.filter { $0.progress >= $0.goal && $0.goal > 0 }.count
+                let percentCompleted = activeDays.count > 0 ? Int((Double(completedHabitDays) / Double(activeDays.count)) * 100) : 0
+                calendarCards.append(HabitCalendarData(id: habit.id, icon: habit.icon, title: habit.name, percentCompleted: percentCompleted, days: days))
             }
+            let overallCompletionRate = totalTrackedHabitDays > 0 ? Int((Double(totalCompletedHabitDays) / Double(totalTrackedHabitDays)) * 100) : 0
+            // Calculate average daily completion rate for the chart
+            let periodDays = selectedPeriod.days
+            var dailyCompletionRates: [Double] = []
+            for i in 0..<periodDays {
+                let day = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -(periodDays - 1 - i), to: now) ?? now)
+                var completedHabits = 0
+                var trackedHabits = 0
+                for habit in habits {
+                    // Find progress for this habit on this day
+                    if let progress = try? await progressService.fetchProgressForRange(userId: userId, habitId: habit.id, startDate: day, endDate: day).first {
+                        trackedHabits += 1
+                        if progress.goal > 0 && progress.progress >= progress.goal {
+                            completedHabits += 1
+                        }
+                    } else {
+                        // No record: treat as 0 progress
+                        trackedHabits += 1
+                    }
+                }
+                let percent = trackedHabits > 0 ? Double(completedHabits) / Double(trackedHabits) : 0.0
+                dailyCompletionRates.append(percent)
+            }
+            let avgCompletionRate = dailyCompletionRates.count > 0 ? Int((dailyCompletionRates.reduce(0, +) / Double(dailyCompletionRates.count)) * 100) : 0
             // Normalize bar chart data: average percent per day
             var barChart: [DayStat] = []
             for i in 0..<selectedPeriod.days {
@@ -177,6 +209,8 @@ final class StatsViewModel: ObservableObject {
                 self.missedCount = missedCopy
                 self.summaryStats = summaryCopy
                 self.calendarData = calendarCopy
+                self.overallCompletionRate = overallCompletionRate
+                self.avgChartCompletionRate = avgCompletionRate
                 self.isLoading = false
             }
         } catch {

@@ -65,7 +65,7 @@ struct HomeView: View {
                         .ignoresSafeArea()
                     // Sticky header
                     Color.digitBrand
-                        .frame(height: 40)
+                        .frame(height: 48)
                         .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
                         .overlay(
                             HStack(spacing: 10) {

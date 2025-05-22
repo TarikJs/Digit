@@ -34,6 +34,25 @@ struct StatsView: View {
     
     private let horizontalPadding: CGFloat = DigitLayout.Padding.horizontal
     
+    // MARK: - New: Header Bar
+    private var headerBar: some View {
+        ZStack {
+            Color.digitBrand
+                .frame(height: 48)
+                .ignoresSafeArea(edges: .top)
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.digitAccentRed)
+                    .frame(width: 4, height: 24)
+                Text("Your Stats")
+                    .font(.plusJakartaSans(size: 22, weight: .bold))
+                    .foregroundStyle(Color.white)
+                Spacer()
+            }
+            .padding(.horizontal, horizontalPadding)
+        }
+    }
+    
     // MARK: - Extracted: Header View
     private var headerView: some View {
         Text("See your activity for")
@@ -47,29 +66,44 @@ struct StatsView: View {
     
     // MARK: - Extracted: Segmented Control
     private var segmentedControl: some View {
-        HStack(spacing: 12) {
-            ForEach(StatsViewModel.Period.allCases, id: \.self) { period in
-                Button(action: { viewModel.selectedPeriod = period }) {
-                    Text(period.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(viewModel.selectedPeriod == period ? Color.white : Color.digitBrand)
-                        .frame(minWidth: 0, maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            ZStack {
-                                if viewModel.selectedPeriod == period {
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(Color.digitBrand)
-                                } else {
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(Color.digitBrand, lineWidth: 2)
+        ZStack {
+            RoundedRectangle(cornerRadius: DigitLayout.cornerRadius, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DigitLayout.cornerRadius, style: .continuous)
+                        .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1.5)
+                )
+            HStack(spacing: 0) {
+                ForEach(StatsViewModel.Period.allCases.indices, id: \ .self) { idx in
+                    let period = StatsViewModel.Period.allCases[idx]
+                    Button(action: { viewModel.selectedPeriod = period }) {
+                        Text(period.title)
+                            .font(.plusJakartaSans(size: 16, weight: .semibold))
+                            .foregroundStyle(viewModel.selectedPeriod == period ? Color.white : Color.digitBrand)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                ZStack {
+                                    if viewModel.selectedPeriod == period {
+                                        RoundedRectangle(cornerRadius: DigitLayout.cornerRadius - 2, style: .continuous)
+                                            .fill(Color.digitAccentRed)
+                                            .shadow(color: Color.digitAccentRed.opacity(0.10), radius: 2, y: 1)
+                                            .padding(.horizontal, 2)
+                                            .padding(.vertical, 2)
+                                    } else {
+                                        Color.clear
+                                    }
                                 }
-                            }
-                        )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: DigitLayout.cornerRadius - 2, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 2)
         }
+        .frame(height: 44)
         .padding(.horizontal, horizontalPadding)
         .padding(.top, 12)
     }
@@ -118,7 +152,7 @@ struct StatsView: View {
                 return viewModel.barChartData
             }
         }()
-        return CompletionBarChartCard(data: chartData, avgPercent: avgPercent, period: viewModel.selectedPeriod)
+        return CompletionBarChartCard(data: chartData, avgPercent: avgPercent, period: viewModel.selectedPeriod, horizontalPadding: horizontalPadding)
     }
     
     // MARK: - Extracted: Summary Cards Section
@@ -145,7 +179,7 @@ struct StatsView: View {
             } else {
                 VStack(spacing: 14) {
                     ForEach(viewModel.summaryStats) { stat in
-                        HabitStatCard(stat: stat)
+                        HabitStatCard(stat: stat, horizontalPadding: horizontalPadding)
                     }
                 }
                 .padding(.top, 12)
@@ -155,60 +189,62 @@ struct StatsView: View {
         }
     }
     
-    // MARK: - Period Menu Dropdown (Large Title Style)
-    private var periodMenu: some View {
-        Menu {
-            ForEach(StatsViewModel.Period.allCases) { period in
-                Button {
-                    viewModel.selectedPeriod = period
-                } label: {
-                    Text(period.title)
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Text(viewModel.selectedPeriod.title)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.primary)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.primary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 24)
-            .padding(.bottom, 12)
-            .padding(.horizontal, horizontalPadding)
-        }
-    }
-    
     // MARK: - Main Content (extracted for compiler performance)
     private var mainContent: some View {
         VStack(spacing: 0) {
-            periodMenu
-            chartOrGridSection
-            HabitSummaryRow(perfect: viewModel.perfectCount, partial: viewModel.partialCount, missed: viewModel.missedCount)
-                .padding(.top, 20)
-                .padding(.bottom, 20)
-            VStack(spacing: 16) {
-                ForEach(viewModel.calendarData) { habit in
-                    HabitCalendarCard(habit: habit)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                habitToDelete = habit.id
-                                showDeleteAlert = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            Button {
-                                // Optionally implement stop logic here
-                            } label: {
-                                Label("Stop", systemImage: "pause.circle")
-                            }
+            headerBar
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    segmentedControl
+                    VStack(alignment: .leading, spacing: 16) {
+                        chartOrGridSection
+                            .background(Color.white)
+                            .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
+                            .padding(.horizontal, horizontalPadding)
+                    }
+
+                    HabitSummaryRow(perfect: viewModel.perfectCount, partial: viewModel.partialCount, missed: viewModel.missedCount, horizontalPadding: 0)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
+                        .padding(.horizontal, horizontalPadding)
+
+                    // Calendar Cards
+                    VStack(spacing: 8) {
+                        ForEach(viewModel.calendarData) { habit in
+                            HabitCalendarCard(habit: habit)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        habitToDelete = habit.id
+                                        showDeleteAlert = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                    Button {
+                                        // Optionally implement stop logic here
+                                    } label: {
+                                        Label("Stop", systemImage: "pause.circle")
+                                    }
+                                }
+                                .padding(.horizontal, horizontalPadding)
                         }
+                    }
+                    .padding(.bottom, 8)
                 }
+                .padding(.top, 24)
+                .background(Color.digitGrayLight)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
         }
         .alert("Delete Habit?", isPresented: $showDeleteAlert, presenting: habitToDelete) { id in
             Button("Delete", role: .destructive) {
@@ -222,13 +258,7 @@ struct StatsView: View {
     
     // MARK: - Main Body
     var body: some View {
-        ZStack {
-            Color.digitGrayLight
-                .ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                mainContent
-            }
-        }
+        mainContent
     }
 }
 
@@ -291,26 +321,29 @@ struct WeeklyHabitGrid: View {
 // MARK: - Habit Stat Card
 struct HabitStatCard: View {
     let stat: HabitStat
+    let horizontalPadding: CGFloat
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             Image(systemName: stat.icon)
                 .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(Color.digitBrand)
             Text(stat.title)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.plusJakartaSans(size: 16, weight: .semibold))
                 .foregroundStyle(Color.digitBrand)
             Spacer()
             Text(stat.value)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.plusJakartaSans(size: 16, weight: .semibold))
                 .foregroundStyle(Color.digitBrand)
         }
         .padding(16)
-        .background(stat.color)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.digitBrand, lineWidth: 1.2)
         )
-        .cornerRadius(16)
+        .padding(.horizontal, horizontalPadding)
     }
 }
 
@@ -319,6 +352,7 @@ private struct CompletionBarChartCard: View {
     let data: [StatsViewModel.DayStat]
     let avgPercent: Double
     let period: StatsViewModel.Period
+    let horizontalPadding: CGFloat
     @State private var scrollTarget: UUID? = nil
 
     private var chartBars: [ChartBar] {
@@ -326,25 +360,25 @@ private struct CompletionBarChartCard: View {
     }
 
     private var weekChart: some View {
-        Chart(data) {
+        Chart(data) { day in
             BarMark(
-                x: .value("Date", $0.date, unit: .day),
-                y: .value("Completion", $0.percent)
+                x: .value("Date", day.date, unit: .day),
+                y: .value("Completion", day.percent)
             )
-            .foregroundStyle(Color.digitBrand)
+            .foregroundStyle(Color.digitAccentRed)
             .cornerRadius(4)
         }
         .chartYScale(domain: 0.0...1.0)
         .chartYAxis {
             AxisMarks(position: .leading, values: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [2]))
-                    .foregroundStyle(Color.digitDivider)
+                    .foregroundStyle(Color.digitBrand.opacity(0.15))
                 AxisTick()
-                    .foregroundStyle(Color.digitDivider)
+                    .foregroundStyle(Color.digitBrand.opacity(0.15))
                 AxisValueLabel() {
                     if let percent = value.as(Double.self) {
                         Text("\(Int(percent * 100))%")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(Color.digitBrand)
                             .font(.system(size: 12, weight: .medium))
                     }
                 }
@@ -355,67 +389,63 @@ private struct CompletionBarChartCard: View {
                 AxisValueLabel() {
                     if let date = value.as(Date.self) {
                         Text(date, format: .dateTime.weekday(.abbreviated))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(Color.digitBrand)
                             .font(.system(size: 12, weight: .medium))
                     }
                 }
             }
         }
-        .frame(height: 320)
-        .padding(.top, 16)
-        .padding(.horizontal, 8)
-        .background(Color.digitBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 8)
-        .padding(.bottom, 16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 320)
+        .chartXAxis(.automatic)
     }
 
     private var monthBarChart: some View {
-        Chart {
-            ForEach(chartBars) { bar in
-                BarMark(
-                    x: .value("Date", bar.date, unit: .day),
-                    y: .value("Completion", bar.percent)
-                )
-                .foregroundStyle(Color.digitBrand)
-                .cornerRadius(4)
-                .accessibilityLabel(Text("\(bar.date, format: .dateTime.day()): \(Int(bar.percent * 100))%"))
+        ScrollView(.horizontal, showsIndicators: false) {
+            Chart {
+                ForEach(chartBars) { bar in
+                    BarMark(
+                        x: .value("Date", bar.date, unit: .day),
+                        y: .value("Completion", bar.percent)
+                    )
+                    .foregroundStyle(Color.digitAccentRed)
+                    .cornerRadius(4)
+                    .accessibilityLabel(Text("\(bar.date, format: .dateTime.day()): \(Int(bar.percent * 100))%"))
+                }
             }
-        }
-        .chartYScale(domain: 0.0...1.0)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [2]))
-                    .foregroundStyle(Color.digitDivider)
-                AxisTick()
-                    .foregroundStyle(Color.digitDivider)
-                AxisValueLabel() {
-                    if let percent = value.as(Double.self) {
-                        Text("\(Int(percent * 100))%")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12, weight: .medium))
+            .chartYScale(domain: 0.0...1.0)
+            .chartYAxis {
+                AxisMarks(position: .leading, values: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [2]))
+                        .foregroundStyle(Color.digitBrand.opacity(0.15))
+                    AxisTick()
+                        .foregroundStyle(Color.digitBrand.opacity(0.15))
+                    AxisValueLabel() {
+                        if let percent = value.as(Double.self) {
+                            Text("\(Int(percent * 100))%")
+                                .foregroundStyle(Color.digitBrand)
+                                .font(.system(size: 12, weight: .medium))
+                        }
                     }
                 }
             }
-        }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .day)) { value in
-                AxisValueLabel() {
-                    if let date = value.as(Date.self) {
-                        Text(date, format: .dateTime.day())
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12, weight: .medium))
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { value in
+                    AxisValueLabel() {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.day())
+                                .foregroundStyle(Color.digitBrand)
+                                .font(.system(size: 12, weight: .medium))
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(width: CGFloat(chartBars.count) * 32, height: 320)
+            .chartXAxis(.automatic)
         }
-        .frame(width: CGFloat(data.count) * 38, height: 320)
-        .padding(.top, 16)
-        .padding(.horizontal, 8)
-        .background(Color.digitBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 8)
-        .padding(.bottom, 16)
     }
 
     private var monthChart: some View {
@@ -437,7 +467,7 @@ private struct CompletionBarChartCard: View {
                     }
                 }
             }
-            .onChange(of: data) { _ in
+            .onChange(of: data) { _, _ in
                 if let today = chartBars.first(where: { Calendar.current.isDateInToday($0.date) }) {
                     scrollTarget = today.id
                 } else if let last = chartBars.last {
@@ -461,20 +491,20 @@ private struct CompletionBarChartCard: View {
                     x: .value("Month", $0.date, unit: .month),
                     y: .value("Completion", $0.percent)
                 )
-                .foregroundStyle(Color.digitBrand)
+                .foregroundStyle(Color.digitAccentRed)
                 .cornerRadius(4)
             }
             .chartYScale(domain: 0.0...1.0)
             .chartYAxis {
                 AxisMarks(position: .leading, values: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [2]))
-                        .foregroundStyle(Color.digitDivider)
+                        .foregroundStyle(Color.digitBrand.opacity(0.15))
                     AxisTick()
-                        .foregroundStyle(Color.digitDivider)
+                        .foregroundStyle(Color.digitBrand.opacity(0.15))
                     AxisValueLabel() {
                         if let percent = value.as(Double.self) {
                             Text("\(Int(percent * 100))%")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(Color.digitBrand)
                                 .font(.system(size: 12, weight: .medium))
                         }
                     }
@@ -485,33 +515,36 @@ private struct CompletionBarChartCard: View {
                     AxisValueLabel() {
                         if let date = value.as(Date.self) {
                             Text(date, format: .dateTime.month(.abbreviated))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(Color.digitBrand)
                                 .font(.system(size: 12, weight: .medium))
                         }
                     }
                 }
             }
-            .frame(width: CGFloat(data.count) * 48, height: 320)
-            .padding(.top, 16)
-            .padding(.horizontal, 8)
-            .background(Color.digitBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 8)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(width: CGFloat(data.count) * 32, height: 320)
+            .chartXAxis(.automatic)
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("AVG COMPLETION RATE")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary)
-                .padding(.top, 16)
-                .padding(.horizontal, 16)
-            Text("\(Int(avgPercent * 100))%")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.primary)
-                .padding(.horizontal, 16)
+            HStack(alignment: .firstTextBaseline) {
+                Text("AVG COMPLETION RATE")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(Int(avgPercent * 100))%")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.primary)
+            }
+            .padding(.top, 16)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.bottom, 8)
+            Divider()
+                .background(Color.digitDivider)
+                .padding(.horizontal, horizontalPadding)
                 .padding(.bottom, 8)
             Group {
                 switch period {
@@ -524,13 +557,6 @@ private struct CompletionBarChartCard: View {
                 }
             }
         }
-        .background(Color.digitBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.digitBrand, lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
     }
 }
 
@@ -539,8 +565,7 @@ private struct HabitSummaryRow: View {
     let perfect: Int
     let partial: Int
     let missed: Int
-
-    private let cornerRadius: CGFloat = 16
+    let horizontalPadding: CGFloat
 
     var body: some View {
         HStack(spacing: 0) {
@@ -550,14 +575,7 @@ private struct HabitSummaryRow: View {
             shortDivider
             summaryCell(icon: "xmark.circle.fill", iconColor: .red, label: "MISSED", value: missed)
         }
-        .padding(.vertical, 12)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(Color.digitBrand, lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
     }
 
     private var shortDivider: some View {
@@ -577,7 +595,7 @@ private struct HabitSummaryRow: View {
                 .foregroundColor(iconColor)
             Text(label)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(Color.secondary)
             Text("\(value)")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.digitBrand)

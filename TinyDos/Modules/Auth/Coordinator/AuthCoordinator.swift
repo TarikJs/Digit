@@ -105,14 +105,8 @@ final class AuthCoordinator: ObservableObject {
 extension AuthCoordinator {
     @MainActor
     func handleOnboardingCompletion() async {
-        if await authViewModel.isEmailVerified() {
-            withAnimation {
-                currentState = .main
-            }
-        } else {
-            withAnimation {
-                currentState = .waitingForVerification
-            }
+        withAnimation {
+            currentState = .main
         }
     }
 

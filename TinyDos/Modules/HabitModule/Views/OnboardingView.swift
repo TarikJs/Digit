@@ -52,7 +52,20 @@ struct OnboardingView: View {
                             case .userName:
                                 usernameStep
                             case .email:
-                                emailStep
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("What's your email?")
+                                        .font(.plusJakartaSans(size: 16))
+                                        .foregroundStyle(.secondary)
+                                    TextField("Email address", text: $viewModel.email)
+                                        .keyboardType(.emailAddress)
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                        .padding(.horizontal, 16)
+                                        .frame(height: 56)
+                                        .background(Color.digitGrayLight)
+                                        .cornerRadius(10)
+                                }
+                                .padding(.horizontal)
                             case .dateOfBirth:
                                 dateOfBirthStep
                             case .gender:

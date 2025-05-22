@@ -14,28 +14,28 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		DCA803B62DCA76D100028F5D /* Digit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Digit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCA803B62DCA76D100028F5D /* TinyDos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TinyDos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		DC1842DD2DD81983005635D4 /* Exceptions for "Digit" folder in "Digit" target */ = {
+		DC1842DD2DD81983005635D4 /* Exceptions for "TinyDos" folder in "TinyDos" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Context.md,
 				Info.plist,
 				README.md,
 			);
-			target = DCA803B52DCA76D100028F5D /* Digit */;
+			target = DCA803B52DCA76D100028F5D /* TinyDos */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		DCA803B82DCA76D100028F5D /* Digit */ = {
+		DCA803B82DCA76D100028F5D /* TinyDos */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				DC1842DD2DD81983005635D4 /* Exceptions for "Digit" folder in "Digit" target */,
+				DC1842DD2DD81983005635D4 /* Exceptions for "TinyDos" folder in "TinyDos" target */,
 			);
-			path = Digit;
+			path = TinyDos;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -58,7 +58,7 @@
 		DCA803AD2DCA76D100028F5D = {
 			isa = PBXGroup;
 			children = (
-				DCA803B82DCA76D100028F5D /* Digit */,
+				DCA803B82DCA76D100028F5D /* TinyDos */,
 				DCA804B62DCC55D500028F5D /* Frameworks */,
 				DCA803B72DCA76D100028F5D /* Products */,
 			);
@@ -67,7 +67,7 @@
 		DCA803B72DCA76D100028F5D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				DCA803B62DCA76D100028F5D /* Digit.app */,
+				DCA803B62DCA76D100028F5D /* TinyDos.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,9 +82,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		DCA803B52DCA76D100028F5D /* Digit */ = {
+		DCA803B52DCA76D100028F5D /* TinyDos */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DCA803C12DCA76D200028F5D /* Build configuration list for PBXNativeTarget "Digit" */;
+			buildConfigurationList = DCA803C12DCA76D200028F5D /* Build configuration list for PBXNativeTarget "TinyDos" */;
 			buildPhases = (
 				DCA803B22DCA76D100028F5D /* Sources */,
 				DCA803B32DCA76D100028F5D /* Frameworks */,
@@ -95,9 +95,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				DCA803B82DCA76D100028F5D /* Digit */,
+				DCA803B82DCA76D100028F5D /* TinyDos */,
 			);
-			name = Digit;
+			name = TinyDos;
 			packageProductDependencies = (
 				DCA804B72DCC55D500028F5D /* Supabase */,
 				DC00204B2DD3AEBB00F4C3D6 /* ConfettiSwiftUI */,
@@ -105,7 +105,7 @@
 				DC1842F02DD97965005635D4 /* GoogleSignInSwift */,
 			);
 			productName = Digit;
-			productReference = DCA803B62DCA76D100028F5D /* Digit.app */;
+			productReference = DCA803B62DCA76D100028F5D /* TinyDos.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -142,7 +142,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				DCA803B52DCA76D100028F5D /* Digit */,
+				DCA803B52DCA76D100028F5D /* TinyDos */,
 			);
 		};
 /* End PBXProject section */
@@ -294,13 +294,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Digit/Digit.entitlements;
+				CODE_SIGN_ENTITLEMENTS = TinyDos/Digit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWLJHVV8Y3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Digit/Info.plist;
+				INFOPLIST_FILE = TinyDos/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TinyDos;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -311,7 +312,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.WebBloomDigital.Digit;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WebBloomDigital.TinyDos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -324,13 +325,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Digit/Digit.entitlements;
+				CODE_SIGN_ENTITLEMENTS = TinyDos/Digit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWLJHVV8Y3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Digit/Info.plist;
+				INFOPLIST_FILE = TinyDos/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TinyDos;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -341,7 +343,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.WebBloomDigital.Digit;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WebBloomDigital.TinyDos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -361,7 +363,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DCA803C12DCA76D200028F5D /* Build configuration list for PBXNativeTarget "Digit" */ = {
+		DCA803C12DCA76D200028F5D /* Build configuration list for PBXNativeTarget "TinyDos" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DCA803C22DCA76D200028F5D /* Debug */,

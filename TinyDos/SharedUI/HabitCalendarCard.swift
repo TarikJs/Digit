@@ -32,7 +32,7 @@ public struct HabitCalendarCard<Data: HabitCalendarDataProtocol>: View {
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(Color.digitBrand)
                 Text(habit.title)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.plusJakartaSans(size: 18, weight: .semibold))
                     .foregroundStyle(Color.digitBrand)
                 Spacer()
                 Button(action: {
@@ -46,42 +46,44 @@ public struct HabitCalendarCard<Data: HabitCalendarDataProtocol>: View {
                 }
                 .accessibilityLabel("Info about this card")
             }
-            .padding(.top, 20)
-            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.horizontal, 0)
             Divider()
                 .background(Color.digitDivider)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 0)
             ZStack(alignment: .topLeading) {
                 HabitCalendarGrid(days: habit.days)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 24)
-            .padding(.bottom, 24)
+            .padding(.horizontal, 0)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
             .frame(maxHeight: .infinity)
             Divider()
                 .background(Color.digitDivider)
-                .padding(.top, 16)
-                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.horizontal, 0)
             HStack(alignment: .center) {
                 Text(percentCompletedText)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.plusJakartaSans(size: 14, weight: .bold))
                     .foregroundStyle(Color.digitBrand)
                 Spacer()
                 HabitGridLegend()
                     .scaleEffect(0.95)
             }
-            .padding(.top, 8)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.top, 4)
+            .padding(.horizontal, 0)
+            .padding(.bottom, 10)
         }
+        .padding(DigitLayout.Padding.content)
         .frame(height: cardHeight)
-        .background(Color.digitBackground)
-        .cornerRadius(20)
+        .background(Color.white)
+        .cornerRadius(DigitLayout.cornerRadius)
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.digitBrand, lineWidth: 1)
+            RoundedRectangle(cornerRadius: DigitLayout.cornerRadius)
+                .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1.5)
         )
+        .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
         .padding(.vertical, 6)
         .alert(isPresented: $showInfoAlert) {
             Alert(
@@ -159,7 +161,13 @@ public struct HabitCalendarGrid<Day: HabitCalendarDayProtocol>: View {
                                         if let day = weeks[weekIdx][dayIdx] {
                                             HabitGridDaySquare(day: day, squareSize: squareSize)
                                         } else {
-                                            Spacer().frame(width: squareSize, height: squareSize)
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .fill(Color.clear)
+                                                .frame(width: squareSize, height: squareSize)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 3)
+                                                        .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1.2)
+                                                )
                                         }
                                     }
                                 }
@@ -264,4 +272,40 @@ public struct HabitGridLegend: View {
                 .minimumScaleFactor(0.7)
         }
     }
+}
+
+private struct MockDay: HabitCalendarDayProtocol {
+    let id = UUID()
+    let date: Date
+    let progress: Int
+    let goal: Int
+    let isActive: Bool
+}
+private struct MockHabit: HabitCalendarDataProtocol {
+    let id = UUID()
+    let icon: String
+    let title: String
+    let percentCompleted: Int
+    let days: [MockDay]
+}
+
+#Preview {
+    let today = Date()
+    let days: [MockDay] = (0..<30).map { offset in
+        MockDay(
+            date: Calendar.current.date(byAdding: .day, value: -offset, to: today)!,
+            progress: Int.random(in: 0...5),
+            goal: 5,
+            isActive: true
+        )
+    }
+    let habit = MockHabit(
+        icon: "flame.fill",
+        title: "Read 10 pages",
+        percentCompleted: 80,
+        days: days
+    )
+    return HabitCalendarCard(habit: habit)
+        .padding()
+        .background(Color.digitGrayLight)
 } 

@@ -45,15 +45,6 @@ struct ProfileStat: Identifiable {
     let color: Color
 }
 
-// MARK: - Award Model
-struct Award: Identifiable {
-    let id = UUID()
-    let icon: String
-    let title: String
-    let color: Color
-    let bgColor: Color
-}
-
 // MARK: - Challenge Model
 struct Challenge: Identifiable {
     let id = UUID()

@@ -122,11 +122,13 @@ final class AuthViewModel: ObservableObject {
                 .eq("id", value: userId)
                 .execute()
             print("[DEBUG] Supabase response: \(String(data: response.data, encoding: .utf8) ?? "nil")")
-            if let profiles = try? JSONDecoder().decode([UserProfile].self, from: response.data),
-               let profile = profiles.first {
-                print("[DEBUG] Decoded profile: \(profile)")
+            
+            // Decode to DTO first
+            if let profiles = try? JSONDecoder().decode([ProfileDTO].self, from: response.data),
+               let profileDTO = profiles.first {
+                print("[DEBUG] Decoded profile: \(profileDTO)")
                 await MainActor.run {
-                    self.currentUserProfile = profile
+                    self.currentUserProfile = profileDTO.toDomain()
                 }
                 NotificationCenter.default.post(name: .proceedToMain, object: nil)
                 return
@@ -209,13 +211,13 @@ final class AuthViewModel: ObservableObject {
             let session = try await SupabaseManager.shared.client.auth.signUp(email: email, password: password)
             // Insert partial profile with setup_comp = "N"
             let userId = session.user.id.uuidString
-            let partialProfile = UserProfile(
+            let partialProfileDTO = ProfileDTO(
                 id: userId,
                 email: email,
                 first_name: "",
                 last_name: "",
                 user_name: nil,
-                date_of_birth: "",
+                date_of_birth: nil,
                 gender: "",
                 created_at: nil,
                 region: nil,
@@ -224,7 +226,7 @@ final class AuthViewModel: ObservableObject {
             do {
                 _ = try await SupabaseManager.shared.client
                     .from("profiles")
-                    .upsert(partialProfile)
+                    .upsert(partialProfileDTO)
                     .execute()
             } catch {
                 print("[DEBUG] Failed to insert partial profile: \(error)")
@@ -327,14 +329,14 @@ extension Notification.Name {
 struct UserProfile: Codable {
     let id: String
     let email: String
-    let first_name: String
-    let last_name: String
-    let user_name: String?
-    let date_of_birth: String
+    let firstName: String
+    let lastName: String
+    let userName: String?
+    let dateOfBirth: Date?
     let gender: String
-    let created_at: String?
+    let createdAt: Date?
     let region: String?
-    let setup_comp: String?
+    let setupComp: String?
     // Add other fields as needed
 }
 
@@ -344,4 +346,39 @@ enum SupabaseError: Error {
     case invalidCredentials
     case networkError
     case unknown
+}
+
+// MARK: - Data Transfer Object
+private struct ProfileDTO: Codable {
+    let id: String
+    let email: String
+    let first_name: String
+    let last_name: String
+    let user_name: String?
+    let date_of_birth: String?
+    let gender: String
+    let created_at: String?
+    let region: String?
+    let setup_comp: String?
+    
+    func toDomain() -> UserProfile {
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        let createdAtDate = created_at.flatMap { dateFormatter.date(from: $0) }
+        let dateOfBirthDate = date_of_birth.flatMap { dateFormatter.date(from: $0) }
+        
+        return UserProfile(
+            id: id,
+            email: email,
+            firstName: first_name,
+            lastName: last_name,
+            userName: user_name,
+            dateOfBirth: dateOfBirthDate,
+            gender: gender,
+            createdAt: createdAtDate,
+            region: region,
+            setupComp: setup_comp
+        )
+    }
 } 

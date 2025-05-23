@@ -1,6 +1,10 @@
 import SwiftUI
 
 final class AwardsViewModel: ObservableObject {
+    // MARK: - Dependencies
+    private let awardRepository: AwardRepositoryProtocol
+    private let userProfileRepository: UserProfileRepositoryProtocol
+    
     // MARK: - Published Properties
     @Published var userName: String = "Jane Appleseed"
     @Published var email: String = "jane@digitapp.com"
@@ -9,30 +13,61 @@ final class AwardsViewModel: ObservableObject {
         .init(icon: "star.fill", title: "Awards", value: "5 badges", color: .digitHabitPurple),
         .init(icon: "heart.fill", title: "Matches", value: "12", color: .digitBrand)
     ]
-    @Published var awards: [Award] = [
-        .init(icon: "moon.stars", title: "Moonlight warrior", color: .digitHabitPurple, bgColor: .digitHabitPurple),
-        .init(icon: "shoeprints.fill", title: "Marathon mindset", color: .digitHabitGreen, bgColor: .digitHabitGreen),
-        .init(icon: "sun.max.fill", title: "Sunrise achiever", color: .digitHabitGreen, bgColor: .digitHabitGreen),
-        .init(icon: "figure.walk", title: "Step achiever", color: .digitHabitPurple, bgColor: .digitHabitPurple)
-    ]
-    @Published var challenges: [Challenge] = [
-        .init(icon: nil, title: "Strategy Star", subtitle: "Overall harmony", color: .digitBrand, bgColor: .digitBackground, isCompleted: false),
-        .init(icon: nil, title: "Aqua Gardian", subtitle: "Body harmony", color: .digitBrand, bgColor: .digitBackground, isCompleted: false),
-        .init(icon: nil, title: "Zen Master", subtitle: "Mind harmony", color: .digitBrand, bgColor: .digitBackground, isCompleted: false),
-        .init(icon: "pillow.fill", title: "Dreamcatcher", subtitle: "Body harmony", color: .digitHabitGreen, bgColor: .digitHabitGreen, isCompleted: true)
-    ]
+    @Published var awards: [Award] = []
+    @Published var challenges: [Challenge] = []
     
     // MARK: - Initialization
-    init() {
-        loadProfile()
+    init(awardRepository: AwardRepositoryProtocol = AwardRepository(), userProfileRepository: UserProfileRepositoryProtocol = UserProfileRepository()) {
+        self.awardRepository = awardRepository
+        self.userProfileRepository = userProfileRepository
+        Task { await loadData() }
     }
     
-    // MARK: - Private Methods
-    private func loadProfile() {
-        // TODO: Load from persistence or API
-        // For now, using mock data
-        userName = UserDefaults.standard.string(forKey: "userName") ?? "Jane Appleseed"
-        email = UserDefaults.standard.string(forKey: "userEmail") ?? "jane@digitapp.com"
+    // MARK: - Data Loading
+    private func loadData() async {
+        await loadProfileFromCache()
+        await loadAwardsFromCache()
+        // Background sync
+        Task.detached { [weak self] in
+            await self?.syncProfile()
+            await self?.syncAwards()
+        }
+    }
+    
+    private func loadProfileFromCache() async {
+        if let profile = try? await userProfileRepository.fetchProfile() {
+            await MainActor.run {
+                self.userName = profile.userName ?? "Jane Appleseed"
+                self.email = profile.email ?? "jane@digitapp.com"
+            }
+        }
+    }
+    
+    private func loadAwardsFromCache() async {
+        if let cachedAwards = try? await awardRepository.fetchAwards() {
+            await MainActor.run {
+                self.awards = cachedAwards
+            }
+        }
+    }
+    
+    private func syncProfile() async {
+        // This should trigger a remote fetch and update the cache
+        if let profile = try? await userProfileRepository.fetchProfile() {
+            await MainActor.run {
+                self.userName = profile.userName ?? "Jane Appleseed"
+                self.email = profile.email ?? "jane@digitapp.com"
+            }
+        }
+    }
+    
+    private func syncAwards() async {
+        // This should trigger a remote fetch and update the cache
+        if let remoteAwards = try? await awardRepository.fetchAwards() {
+            await MainActor.run {
+                self.awards = remoteAwards
+            }
+        }
     }
 }
 

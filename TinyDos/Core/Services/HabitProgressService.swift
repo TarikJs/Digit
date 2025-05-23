@@ -4,6 +4,10 @@ protocol HabitProgressServiceProtocol {
     func fetchProgress(userId: UUID, habitId: UUID, date: Date) async throws -> HabitProgress?
     func upsertProgress(progress: HabitProgress) async throws
     func fetchProgressForRange(userId: UUID, habitId: UUID, startDate: Date, endDate: Date) async throws -> [HabitProgress]
+    func fetchAllProgress() async throws -> [HabitProgress]
+    func addProgress(_ progress: HabitProgress) async throws
+    func updateProgress(_ progress: HabitProgress) async throws
+    func deleteProgress(_ progress: HabitProgress) async throws
 }
 
 private struct HabitProgressUpsert: Encodable {
@@ -146,5 +150,25 @@ final class HabitProgressService: HabitProgressServiceProtocol {
             print("📱❌ [DEBUG] fetchProgressForRange ERROR: \(error)")
             throw error
         }
+    }
+
+    func fetchAllProgress() async throws -> [HabitProgress] {
+        // This is a placeholder. You should implement fetching all progress for the current user.
+        // For now, return an empty array or throw if not supported.
+        return []
+    }
+
+    func addProgress(_ progress: HabitProgress) async throws {
+        try await upsertProgress(progress: progress)
+    }
+
+    func updateProgress(_ progress: HabitProgress) async throws {
+        try await upsertProgress(progress: progress)
+    }
+
+    func deleteProgress(_ progress: HabitProgress) async throws {
+        // Implement actual delete logic if needed
+        // For now, throw not implemented
+        throw NSError(domain: "HabitProgressService", code: -1, userInfo: [NSLocalizedDescriptionKey: "deleteProgress not implemented"])
     }
 } 

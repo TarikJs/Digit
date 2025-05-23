@@ -27,7 +27,7 @@ struct StatsView: View {
             // Fallback to a dummy UUID for now; production should inject real userId
             resolvedUserId = UUID()
         }
-        _viewModel = StateObject(wrappedValue: StatsViewModel(habitService: habitService, progressService: progressService, userId: resolvedUserId))
+        _viewModel = StateObject(wrappedValue: StatsViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: resolvedUserId))
     }
     
     @Namespace private var segmentNamespace
@@ -75,9 +75,9 @@ struct StatsView: View {
                         .stroke(Color.digitBrand.opacity(0.12), lineWidth: 1.5)
                 )
             HStack(spacing: 0) {
-                ForEach(StatsViewModel.Period.allCases.indices, id: \ .self) { idx in
+                ForEach(StatsViewModel.Period.allCases.indices, id: \.self) { idx in
                     let period = StatsViewModel.Period.allCases[idx]
-                    Button(action: { viewModel.selectedPeriod = period }) {
+                    Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { viewModel.selectedPeriod = period } }) {
                         Text(period.title)
                             .font(.plusJakartaSans(size: 16, weight: .semibold))
                             .foregroundStyle(viewModel.selectedPeriod == period ? Color.white : Color.digitBrand)
@@ -91,6 +91,7 @@ struct StatsView: View {
                                             .shadow(color: Color.digitAccentRed.opacity(0.10), radius: 2, y: 1)
                                             .padding(.horizontal, 2)
                                             .padding(.vertical, 2)
+                                            .matchedGeometryEffect(id: "segment", in: segmentNamespace)
                                     } else {
                                         Color.clear
                                     }
@@ -104,8 +105,9 @@ struct StatsView: View {
             .padding(.horizontal, 2)
         }
         .frame(height: 44)
-        .padding(.horizontal, horizontalPadding)
-        .padding(.top, 12)
+        .padding(.horizontal, DigitLayout.Padding.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
     }
     
     // MARK: - Extracted: Date Picker Row
@@ -177,9 +179,11 @@ struct StatsView: View {
                 .frame(maxWidth: .infinity, minHeight: 300)
                 .padding(.top, 32)
             } else {
-                VStack(spacing: 14) {
-                    ForEach(viewModel.summaryStats) { stat in
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(Array(viewModel.summaryStats.enumerated()), id: \.element.id) { (index, stat) in
                         HabitStatCard(stat: stat, horizontalPadding: horizontalPadding)
+                            .padding(.top, index == 0 ? 0 : 14)
+                            .padding(.bottom, 14)
                     }
                 }
                 .padding(.top, 12)
@@ -194,7 +198,7 @@ struct StatsView: View {
         VStack(spacing: 0) {
             headerBar
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     segmentedControl
                     VStack(alignment: .leading, spacing: 16) {
                         chartOrGridSection
@@ -242,7 +246,6 @@ struct StatsView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .padding(.top, 24)
                 .background(Color.digitGrayLight)
             }
         }

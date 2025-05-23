@@ -38,9 +38,11 @@ final class NewHabitViewModel: ObservableObject {
     var onSave: ((Bool) -> Void)?
     
     private let measurementTypeService: MeasurementTypeServiceProtocol
+    private let habitRepository: HabitRepositoryProtocol
     
-    init(measurementTypeService: MeasurementTypeServiceProtocol = MeasurementTypeService()) {
+    init(measurementTypeService: MeasurementTypeServiceProtocol = MeasurementTypeService(), habitRepository: HabitRepositoryProtocol = HabitRepository()) {
         self.measurementTypeService = measurementTypeService
+        self.habitRepository = habitRepository
     }
     
     // Fetch units when name changes

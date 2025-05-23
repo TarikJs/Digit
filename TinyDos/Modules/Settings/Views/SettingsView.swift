@@ -85,7 +85,7 @@ struct SettingsView: View {
                     VStack(spacing: 0) {
                         Button(action: { isEditingProfile = true }) {
                             AccountProfileCard(
-                                userName: accountViewModel.profile?.user_name ?? "Guest"
+                                userName: accountViewModel.profile?.userName ?? "Guest"
                             )
                         }
                         .buttonStyle(.plain)
@@ -332,7 +332,7 @@ struct ProfileEditView: View {
     }
 
     private var userNameDisplay: String {
-        if let userName = accountViewModel.profile?.user_name, !userName.isEmpty {
+        if let userName = accountViewModel.profile?.userName, !userName.isEmpty {
             return "@\(userName)"
         } else {
             return "@ Claim Username"
@@ -345,7 +345,7 @@ struct ProfileEditView: View {
 
     private var hasChanges: Bool {
         guard let profile = accountViewModel.profile else { return false }
-        return firstName != profile.first_name || lastName != profile.last_name
+        return firstName != profile.firstName || lastName != profile.lastName
     }
 
     var body: some View {
@@ -446,8 +446,8 @@ struct ProfileEditView: View {
                 .padding(.horizontal, 16)
                 .onAppear {
                     if let profile = accountViewModel.profile {
-                        firstName = profile.first_name
-                        lastName = profile.last_name
+                        firstName = profile.firstName
+                        lastName = profile.lastName
                     } else {
                         firstName = ""
                         lastName = ""
@@ -684,14 +684,14 @@ class DummyProfileService: ProfileServiceProtocol {
         return UserProfile(
             id: "dummy-id",
             email: "dummy@email.com",
-            first_name: "Jane",
-            last_name: "Doe",
-            user_name: nil,
-            date_of_birth: "1990-01-01",
+            firstName: "Jane",
+            lastName: "Doe",
+            userName: nil,
+            dateOfBirth: Date(),
             gender: "female",
-            created_at: nil,
+            createdAt: Date(),
             region: nil,
-            setup_comp: nil
+            setupComp: nil
         )
     }
     func updateProfile(_ profile: UserProfile) async throws {

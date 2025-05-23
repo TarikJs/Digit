@@ -18,8 +18,8 @@ final class HomeViewModel: ObservableObject {
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
     private let calendar = Calendar.current
-    private let habitService: HabitServiceProtocol
-    private let progressService: HabitProgressServiceProtocol
+    private let habitRepository: HabitRepositoryProtocol
+    private let progressRepository: ProgressRepositoryProtocol
     var userId: UUID
     // Track which (habit, date) pairs are currently updating to prevent race conditions
     private var updatingProgressKeys = Set<String>()
@@ -43,11 +43,15 @@ final class HomeViewModel: ObservableObject {
     }
     
     // MARK: - Initialization
-    init(habitService: HabitServiceProtocol, progressService: HabitProgressServiceProtocol, userId: UUID) {
-        self.habitService = habitService
-        self.progressService = progressService
+    init(habitRepository: HabitRepositoryProtocol = HabitRepository(), progressRepository: ProgressRepositoryProtocol = ProgressRepository(), userId: UUID) {
+        self.habitRepository = habitRepository
+        self.progressRepository = progressRepository
         self.userId = userId
-        loadInitialData()
+        Task { await loadHabitsAndProgressFromCache() }
+        // Background sync
+        Task.detached { [weak self] in
+            await self?.syncHabitsAndProgress()
+        }
         setupDateObserver()
     }
     
@@ -150,14 +154,26 @@ final class HomeViewModel: ObservableObject {
     }
     
     // MARK: - Data Loading
-    private func loadInitialData() {
-        Task {
-            await loadHabitsAndProgressForVisibleDates()
-            await migrateHabitUnitsIfNeeded()
-            await loadHabitsAndProgressForVisibleDates()
+    private func loadHabitsAndProgressFromCache() async {
+        await MainActor.run {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
+        do {
+            let fetchedHabits = try await habitRepository.fetchHabits()
+            await MainActor.run {
+                self.habits = fetchedHabits
+            }
+            // Optionally, you could cache progress as well if your repository supports it
+            await loadHabitsAndProgressForVisibleDates() // Use the same logic to populate published properties
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to load habits or progress: \(error.localizedDescription)"
+                self.isLoading = false
+            }
         }
     }
-    
+
     private func setupDateObserver() {
         // Setup any observers if needed
     }
@@ -168,7 +184,7 @@ final class HomeViewModel: ObservableObject {
             self.errorMessage = nil
         }
         do {
-            let fetchedHabits = try await habitService.fetchHabits()
+            let fetchedHabits = try await habitRepository.fetchHabits()
             await MainActor.run {
                 self.habits = fetchedHabits
             }
@@ -176,12 +192,7 @@ final class HomeViewModel: ObservableObject {
             let startOfRange = utcCalendar.date(byAdding: .day, value: -89, to: today) ?? today
             var mergedHabitHistory = self.habitHistory
             for habit in fetchedHabits {
-                let progressList = try await progressService.fetchProgressForRange(
-                    userId: userId,
-                    habitId: habit.id,
-                    startDate: startOfRange,
-                    endDate: today
-                )
+                let progressList = try await progressRepository.fetchProgress().filter { $0.habitId == habit.id.uuidString && $0.date >= startOfRange && $0.date <= today }
                 let loadedKeys = progressList.map { dateKey(for: $0.date) }
                 print("[DEBUG] Loaded progress keys from Supabase for habit \(habit.name): \(loadedKeys)")
                 var dateDict = mergedHabitHistory[habit.id] ?? [:]
@@ -226,7 +237,7 @@ final class HomeViewModel: ObservableObject {
         )
         dirtyProgressKeys.insert(progressKey(for: habit, date: date))
         do {
-            try await progressService.upsertProgress(progress: progressRow)
+            try await progressRepository.updateProgress(progressRow)
             print("[DEBUG] Upserted progress for habit=\(habit.name), date=\(date), progress=\(progress), goal=\(goal)")
             await MainActor.run {
                 self.habitProgress[habit.id] = progressRow
@@ -264,7 +275,7 @@ final class HomeViewModel: ObservableObject {
     /// Fetch all progress for a habit over a date range (for calendar, streaks, analytics)
     func fetchProgressHistory(for habit: Habit, startDate: Date, endDate: Date) async {
         do {
-            let progressList = try await progressService.fetchProgressForRange(userId: userId, habitId: habit.id, startDate: startDate, endDate: endDate)
+            let progressList = try await progressRepository.fetchProgress().filter { $0.habitId == habit.id.uuidString && $0.date >= startDate && $0.date <= endDate }
             var dateDict: [String: HabitProgress] = [:]
             for progress in progressList {
                 let key = dateKey(for: progress.date)
@@ -292,7 +303,7 @@ final class HomeViewModel: ObservableObject {
     // MARK: - User ID Update
     public func updateUserId(_ newUserId: UUID) {
         self.userId = newUserId
-        loadInitialData()
+        Task { await loadHabitsAndProgressFromCache() }
     }
 
     /// Returns the list of habits that are active on a given date (startDate <= date <= endDate, and matches repeatFrequency/weekday if set)
@@ -367,7 +378,7 @@ final class HomeViewModel: ObservableObject {
                             updatedAt: Date(),
                             unit: newUnit
                         )
-                        try? await habitService.updateHabit(updatedHabit)
+                        try? await habitRepository.updateHabit(updatedHabit)
                     }
                 } catch {
                     print("[MIGRATION] Failed to update unit for habit \(habit.name): \(error)")
@@ -382,12 +393,17 @@ final class HomeViewModel: ObservableObject {
         habits.removeAll { $0.id == habit.id }
         Task {
             do {
-                try await habitService.deleteHabit(id: habit.id)
+                try await habitRepository.deleteHabit(habit)
             } catch {
                 await MainActor.run {
                     self.errorMessage = "Failed to delete habit: \(error.localizedDescription)"
                 }
             }
         }
+    }
+
+    private func syncHabitsAndProgress() async {
+        // This should trigger a remote fetch and update the cache
+        await loadHabitsAndProgressForVisibleDates()
     }
 } 

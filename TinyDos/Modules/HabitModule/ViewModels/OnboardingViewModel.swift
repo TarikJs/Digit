@@ -54,6 +54,8 @@ final class OnboardingViewModel: ObservableObject {
     private let minimumAge = 18
     private let maximumAge = 100
     
+    private let userProfileRepository: UserProfileRepositoryProtocol
+    
     var isNameValid: Bool {
         isFirstNameValid && isLastNameValid
     }
@@ -99,13 +101,14 @@ final class OnboardingViewModel: ObservableObject {
         case .name:
             return isNameValid
         case .userName:
-            return isUserNameValid
+            return !userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && userName.count >= 3
         case .email:
-            return isEmailVerified || isSocialSignIn
+            return !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isValidEmail(email)
         case .gender:
             return selectedGender != nil
         case .dateOfBirth:
-            return isDateOfBirthValid
+            let age = Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date()).year ?? 0
+            return age >= minimumAge && age <= maximumAge
         case .region:
             return selectedRegion != nil
         case .enableNotification:
@@ -144,11 +147,12 @@ final class OnboardingViewModel: ObservableObject {
         await authViewModel?.resendVerificationEmail()
     }
     
-    init(email: String = "", isEmailVerified: Bool = false, isSocialSignIn: Bool = false, authViewModel: AuthViewModel? = nil, onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    init(email: String = "", isEmailVerified: Bool = false, isSocialSignIn: Bool = false, authViewModel: AuthViewModel? = nil, userProfileRepository: UserProfileRepositoryProtocol = UserProfileRepository(), onComplete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.email = email
         self.isEmailVerified = isEmailVerified
         self.isSocialSignIn = isSocialSignIn
         self.authViewModel = authViewModel
+        self.userProfileRepository = userProfileRepository
         self.onComplete = onComplete
         self.onDismiss = onDismiss
     }
@@ -174,20 +178,6 @@ final class OnboardingViewModel: ObservableObject {
                 await saveProfileAndComplete()
             }
         }
-    }
-    
-    // Update UserProfile struct to match the database schema
-    private struct UserProfile: Codable {
-        let id: String
-        let email: String
-        let first_name: String
-        let last_name: String
-        let user_name: String?
-        let date_of_birth: String?
-        let gender: String
-        let created_at: String?
-        let region: String?
-        let setup_comp: String?
     }
     
     private struct WelcomeEmailPayload: Encodable {
@@ -231,23 +221,17 @@ final class OnboardingViewModel: ObservableObject {
             let profile = UserProfile(
                 id: userId,
                 email: email.lowercased(),
-                first_name: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
-                last_name: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
-                user_name: userName.trimmingCharacters(in: .whitespacesAndNewlines),
-                date_of_birth: dateFormatter.string(from: dateOfBirth),
+                firstName: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                userName: userName.trimmingCharacters(in: .whitespacesAndNewlines),
+                dateOfBirth: dateOfBirth,
                 gender: genderString,
-                created_at: dateFormatter.string(from: Date()),
+                createdAt: Date(),
                 region: selectedRegion,
-                setup_comp: "Y"
+                setupComp: "Y"
             )
             print("[DEBUG] Attempting to save profile: \(profile)")
-            do {
-                let response = try await SupabaseManager.shared.client
-                    .from("profiles")
-                    .upsert(profile)
-                    .execute()
-                print("[DEBUG] Profile save response: \(response)")
-            }
+            try await userProfileRepository.saveProfile(profile)
             // Send welcome email
             Task {
                 do {
@@ -329,14 +313,14 @@ final class OnboardingViewModel: ObservableObject {
             let partialProfile = UserProfile(
                 id: userId,
                 email: email,
-                first_name: firstName,
-                last_name: lastName,
-                user_name: userName,
-                date_of_birth: nil,
+                firstName: firstName,
+                lastName: lastName,
+                userName: userName,
+                dateOfBirth: nil,
                 gender: "",
-                created_at: nil,
+                createdAt: nil,
                 region: nil,
-                setup_comp: "IW"
+                setupComp: "IW"
             )
             _ = try await SupabaseManager.shared.client
                 .from("profiles")
@@ -349,5 +333,11 @@ final class OnboardingViewModel: ObservableObject {
     
     func deletePartialProfileIfAbandoned() async {
         await authViewModel?.deleteCurrentUserProfileIfNotComplete()
+    }
+    
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: email)
     }
 } 

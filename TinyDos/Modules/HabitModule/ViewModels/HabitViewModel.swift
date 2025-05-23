@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class HabitViewModel: ObservableObject {
-    private let habitService: HabitServiceProtocol
+    private let habitRepository: HabitRepositoryProtocol
     private let userId: String
     private let notificationService: NotificationServiceProtocol
     
@@ -17,8 +17,8 @@ final class HabitViewModel: ObservableObject {
     // Closure to notify on successful creation (e.g., to refresh HomeViewModel)
     var onHabitCreated: (() -> Void)?
     
-    init(habitService: HabitServiceProtocol, userId: String, notificationService: NotificationServiceProtocol = NotificationService()) {
-        self.habitService = habitService
+    init(habitRepository: HabitRepositoryProtocol, userId: String, notificationService: NotificationServiceProtocol = NotificationService()) {
+        self.habitRepository = habitRepository
         self.userId = userId
         self.notificationService = notificationService
     }
@@ -26,13 +26,17 @@ final class HabitViewModel: ObservableObject {
     func loadCurrentHabit() async {
         isLoading = true
         errorMessage = nil
-        
         do {
-            currentHabit = try await habitService.getCurrentHabit(for: userId)
+            let habits = try await habitRepository.fetchHabits()
+            guard let userUUID = UUID(uuidString: userId) else {
+                errorMessage = "Invalid user ID format."
+                isLoading = false
+                return
+            }
+            currentHabit = habits.first { $0.userId == userUUID }
         } catch {
             errorMessage = "Failed to load habit: \(error.localizedDescription)"
         }
-        
         isLoading = false
     }
     
@@ -68,7 +72,7 @@ final class HabitViewModel: ObservableObject {
                 updatedAt: Date(),
                 unit: unit
             )
-            try await habitService.addHabit(habit)
+            try await habitRepository.addHabit(habit)
             
             // Schedule notification if reminder time is set
             if reminderTime != nil {
@@ -83,18 +87,12 @@ final class HabitViewModel: ObservableObject {
     }
     
     func deleteCurrentHabit() async {
-        guard let habitId = currentHabit?.id else { return }
-        
-        isLoading = true
-        errorMessage = nil
-        
+        guard let habit = currentHabit else { return }
         do {
-            try await habitService.deleteHabit(id: habitId)
+            try await habitRepository.deleteHabit(habit)
             currentHabit = nil
         } catch {
             errorMessage = "Failed to delete habit: \(error.localizedDescription)"
         }
-        
-        isLoading = false
     }
 } 

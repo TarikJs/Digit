@@ -5,7 +5,7 @@ struct HabitView: View {
     @Environment(\.scenePhase) private var scenePhase
     
     init(userId: String) {
-        _viewModel = StateObject(wrappedValue: HabitViewModel(habitService: HabitService(), userId: userId))
+        _viewModel = StateObject(wrappedValue: HabitViewModel(habitRepository: HabitRepository(), userId: userId))
     }
     
     var body: some View {

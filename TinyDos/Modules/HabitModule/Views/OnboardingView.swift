@@ -5,11 +5,7 @@ struct OnboardingView: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var onboardingHomeViewModel = HomeViewModel(
-        habitService: HabitService(),
-        progressService: HabitProgressService(),
-        userId: UUID() // Replace with actual user ID if available
-    )
+    @StateObject private var onboardingHomeViewModel = HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
     @State private var didAutoCheckVerification = false
     @State private var isCheckingVerification = false
     

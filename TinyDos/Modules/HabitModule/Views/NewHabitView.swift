@@ -25,7 +25,7 @@ struct NewHabitView: View {
         self.onDismiss = onDismiss
         self.homeViewModel = homeViewModel
         self.hideCancelButton = hideCancelButton
-        _habitViewModel = StateObject(wrappedValue: HabitViewModel(habitService: HabitService(), userId: userId))
+        _habitViewModel = StateObject(wrappedValue: HabitViewModel(habitRepository: HabitRepository(), userId: userId))
     }
 
     var body: some View {
@@ -524,7 +524,7 @@ private class MockHabitService: HabitServiceProtocol {
     NewHabitView(
         onDismiss: {},
         userId: "preview-user-id",
-        homeViewModel: HomeViewModel(habitService: MockHabitService(), progressService: HabitProgressService(), userId: UUID())
+        homeViewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
     )
 }
 #endif 

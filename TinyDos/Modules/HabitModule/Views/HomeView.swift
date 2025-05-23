@@ -294,7 +294,7 @@ struct HabitRow: View {
 }
 
 #Preview {
-    HomeView(viewModel: HomeViewModel(habitService: HabitService(), progressService: HabitProgressService(), userId: UUID()), isEditMode: .constant(false))
+    HomeView(viewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID()), isEditMode: .constant(false))
 }
 
 // MARK: - Progress Card Data

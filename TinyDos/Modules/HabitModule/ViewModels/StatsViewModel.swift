@@ -2,8 +2,8 @@ import SwiftUI
 
 final class StatsViewModel: ObservableObject {
     // MARK: - Dependencies
-    private let habitService: HabitServiceProtocol
-    private let progressService: HabitProgressServiceProtocol
+    private let habitRepository: HabitRepositoryProtocol
+    private let progressRepository: ProgressRepositoryProtocol
     private let userId: UUID
     
     // MARK: - Published Properties
@@ -27,11 +27,15 @@ final class StatsViewModel: ObservableObject {
     private var habits: [Habit] = []
     
     // MARK: - Init
-    init(habitService: HabitServiceProtocol, progressService: HabitProgressServiceProtocol, userId: UUID) {
-        self.habitService = habitService
-        self.progressService = progressService
+    init(habitRepository: HabitRepositoryProtocol, progressRepository: ProgressRepositoryProtocol, userId: UUID) {
+        self.habitRepository = habitRepository
+        self.progressRepository = progressRepository
         self.userId = userId
-        Task { await loadStats() }
+        Task { await loadStatsFromCache() }
+        // Background sync
+        Task.detached { [weak self] in
+            await self?.syncStats()
+        }
     }
     
     // MARK: - Period Enum
@@ -104,13 +108,36 @@ final class StatsViewModel: ObservableObject {
     }
     
     // MARK: - Data Loading
+    private func loadStatsFromCache() async {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        do {
+            let habits = try await habitRepository.fetchHabits()
+            self.habits = habits
+            // Optionally, you could cache progress as well if your repository supports it
+            await loadStats() // Use the same logic to populate published properties
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
+            }
+        }
+    }
+    
+    private func syncStats() async {
+        // This should trigger a remote fetch and update the cache
+        await loadStats()
+    }
+    
     private func loadStats() async {
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
         do {
-            let habits = try await habitService.fetchHabits()
+            let habits = try await habitRepository.fetchHabits()
             self.habits = habits
             let now = Date()
             let calendar = Calendar.current
@@ -128,7 +155,8 @@ final class StatsViewModel: ObservableObject {
             let totalTrackedHabitDays = habits.count * 90
             for habit in habits {
                 let habitId = habit.id
-                let progressList = try await progressService.fetchProgressForRange(userId: userId, habitId: habitId, startDate: startDate, endDate: now)
+                let allProgress = try await progressRepository.fetchProgress()
+                let progressList = allProgress.filter { $0.habitId == habitId.uuidString && $0.userId == userId.uuidString && $0.date >= startDate && $0.date <= now }
                 // For summary row
                 perfect += progressList.filter { $0.progress >= $0.goal && $0.goal > 0 }.count
                 partial += progressList.filter { $0.progress > 0 && $0.progress < $0.goal }.count
@@ -175,14 +203,11 @@ final class StatsViewModel: ObservableObject {
                 var trackedHabits = 0
                 for habit in habits {
                     // Find progress for this habit on this day
-                    if let progress = try? await progressService.fetchProgressForRange(userId: userId, habitId: habit.id, startDate: day, endDate: day).first {
-                        trackedHabits += 1
-                        if progress.goal > 0 && progress.progress >= progress.goal {
-                            completedHabits += 1
-                        }
-                    } else {
-                        // No record: treat as 0 progress
-                        trackedHabits += 1
+                    let allProgress = try? await progressRepository.fetchProgress()
+                    let progress = allProgress?.first { $0.habitId == habit.id.uuidString && $0.userId == userId.uuidString && $0.date == day }
+                    trackedHabits += 1
+                    if (progress?.goal ?? 0) > 0 && (progress?.progress ?? 0) >= (progress?.goal ?? 0) {
+                        completedHabits += 1
                     }
                 }
                 let percent = trackedHabits > 0 ? Double(completedHabits) / Double(trackedHabits) : 0.0
@@ -226,7 +251,9 @@ final class StatsViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            try await habitService.deleteHabit(id: id)
+            if let habit = habits.first(where: { $0.id == id }) {
+                try await habitRepository.deleteHabit(habit)
+            }
             await loadStats()
         } catch {
             await MainActor.run {

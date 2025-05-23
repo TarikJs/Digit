@@ -5,11 +5,7 @@ struct MainTabView: View {
     @EnvironmentObject private var authCoordinator: AuthCoordinator
     @EnvironmentObject private var authViewModel: AuthViewModel
     
-    @StateObject private var homeViewModel = HomeViewModel(
-        habitService: HabitService(),
-        progressService: HabitProgressService(),
-        userId: UUID() // Temporary dummy value
-    )
+    @StateObject private var homeViewModel = HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
     @State private var isLoading: Bool
     @State private var confettiTrigger = 0
     @State private var showNewHabitSheet = false
@@ -28,10 +24,10 @@ struct MainTabView: View {
     var headerName: String {
         let name: String
         if let profile = authViewModel.currentUserProfile {
-            if let userName = profile.user_name, !userName.isEmpty {
+            if let userName = profile.userName, !userName.isEmpty {
                 name = userName
             } else {
-                name = "\(profile.first_name) \(profile.last_name)"
+                name = "\(profile.firstName) \(profile.lastName)"
             }
         } else {
             name = "Welcome!" // Placeholder until user is logged in

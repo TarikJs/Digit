@@ -47,21 +47,23 @@ final class AccountViewModel: ObservableObject {
         guard var currentProfile = profile else { return }
         isLoading = true
         errorMessage = nil
-        currentProfile = UserProfile(
+        
+        let updatedProfile = UserProfile(
             id: currentProfile.id,
             email: currentProfile.email,
-            first_name: firstName,
-            last_name: lastName,
-            user_name: currentProfile.user_name,
-            date_of_birth: currentProfile.date_of_birth,
+            firstName: firstName,
+            lastName: lastName,
+            userName: currentProfile.userName,
+            dateOfBirth: currentProfile.dateOfBirth,
             gender: currentProfile.gender,
-            created_at: currentProfile.created_at,
+            createdAt: currentProfile.createdAt,
             region: currentProfile.region,
-            setup_comp: currentProfile.setup_comp
+            setupComp: currentProfile.setupComp
         )
+        
         do {
-            try await profileService.updateProfile(currentProfile)
-            profile = currentProfile
+            try await profileService.updateProfile(updatedProfile)
+            profile = updatedProfile
         } catch {
             errorMessage = NSLocalizedString("account_profile_update_error", comment: "Failed to update profile")
         }
@@ -83,11 +85,11 @@ final class AccountViewModel: ObservableObject {
     // MARK: - Computed Properties
     var profileDisplayName: String {
         guard let profile = profile else { return "Guest" }
-        if let userName = profile.user_name, !userName.isEmpty {
+        if let userName = profile.userName, !userName.isEmpty {
             return userName
         }
-        let lastInitial = profile.last_name.first.map { String($0) } ?? ""
-        let name = "\(profile.first_name) \(lastInitial)."
+        let lastInitial = profile.lastName.first.map { String($0) } ?? ""
+        let name = "\(profile.firstName) \(lastInitial)."
         return name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Guest" : name
     }
 

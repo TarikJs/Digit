@@ -8,11 +8,13 @@ struct HabitGoalCard: View {
     let progress: Int
     let goal: Int
     let unit: String?
+    let tag: String?
     let onIncrement: () -> Void
     let onDecrement: () -> Void
     let buttonsEnabled: Bool
     let isEditMode: Bool
     let onDelete: (() -> Void)?
+    let onTap: (() -> Void)?
 
     // State for swipe gesture
     @State private var offsetX: CGFloat = 0
@@ -60,6 +62,15 @@ struct HabitGoalCard: View {
                             .font(.plusJakartaSans(size: 18, weight: .semibold))
                             .foregroundStyle(Color.digitBrand)
                             .lineLimit(2)
+                        if let tag = tag, !tag.isEmpty {
+                            Text(tag)
+                                .font(.plusJakartaSans(size: 12, weight: .bold))
+                                .foregroundColor(Color.digitBrand)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.digitBrand.opacity(0.08))
+                                .cornerRadius(8)
+                        }
                         Text("\(progress)/\(goal)\(unitLabel)")
                             .font(.plusJakartaSans(size: 14, weight: .medium))
                             .foregroundStyle(Color.digitAccentRed)
@@ -124,6 +135,12 @@ struct HabitGoalCard: View {
             .shadow(color: Color.black.opacity(0.06), radius: 4, y: 2)
             .contentShape(Rectangle())
             .zIndex(1)
+            .onTapGesture {
+                if let onTap = onTap {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onTap()
+                }
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 80)
         .offset(x: offsetX)
@@ -170,22 +187,26 @@ struct HabitGoalCard: View {
         progress: Int,
         goal: Int,
         unit: String? = nil,
+        tag: String? = nil,
         onIncrement: @escaping () -> Void,
         onDecrement: @escaping () -> Void,
         buttonsEnabled: Bool,
         isEditMode: Bool,
-        onDelete: (() -> Void)? = nil
+        onDelete: (() -> Void)? = nil,
+        onTap: (() -> Void)? = nil
     ) {
         self.icon = icon
         self.title = title
         self.progress = progress
         self.goal = goal
         self.unit = unit
+        self.tag = tag
         self.onIncrement = onIncrement
         self.onDecrement = onDecrement
         self.buttonsEnabled = buttonsEnabled
         self.isEditMode = isEditMode
         self.onDelete = onDelete
+        self.onTap = onTap
     }
 }
 
@@ -195,33 +216,38 @@ private struct CompletionRing: View {
     let isComplete: Bool
     private let size: CGFloat = 44
     private let lineWidth: CGFloat = 5
+    
+    private var progressColor: Color {
+        if percent >= 1.0 {
+            return Color.digitAccentRed
+        } else if percent > 0 {
+            return Color.digitBrand
+        } else {
+            return Color.digitGrayLight
+        }
+    }
+    
     var body: some View {
         ZStack {
-            if isComplete {
-                Circle()
-                    .fill(HabitGridColorScale.color(for: 0.5).opacity(0.15))
-                    .frame(width: size, height: size)
-            }
+            // Background circle
             Circle()
-                .stroke(Color(hex: "B0B3B8"), lineWidth: lineWidth)
+                .stroke(Color.digitGrayLight.opacity(0.3), lineWidth: lineWidth)
                 .frame(width: size, height: size)
+            
+            // Progress circle
             Circle()
                 .trim(from: 0, to: percent)
                 .stroke(
-                    HabitGridColorScale.color(for: 0.5),
+                    progressColor,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
                 .frame(width: size, height: size)
-            if isComplete {
-                Image(systemName: icon)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.digitBrand)
-            } else {
-                Image(systemName: icon)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color.digitBrand)
-            }
+            
+            // Icon
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(progressColor)
         }
         .shadow(color: Color.black.opacity(0.03), radius: 2, y: 1)
     }
@@ -262,11 +288,13 @@ private extension View {
         progress: 3,
         goal: 7,
         unit: "steps",
+        tag: "Daily",
         onIncrement: {},
         onDecrement: {},
         buttonsEnabled: true,
         isEditMode: false,
-        onDelete: nil
+        onDelete: nil,
+        onTap: nil
     )
     .padding()
     .background(Color.digitGrayLight)

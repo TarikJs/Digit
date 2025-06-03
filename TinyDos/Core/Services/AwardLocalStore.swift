@@ -52,7 +52,7 @@ final class AwardLocalStore: AwardLocalStoreProtocol {
 // MARK: - Mapping Extensions
 extension AwardEntity {
     func toAward() -> Award? {
-        guard let id = id, let icon = icon, let title = title, let colorHex = color, let bgColorHex = bgColor else { return nil }
+        guard let _ = id, let icon = icon, let title = title, let colorHex = color, let bgColorHex = bgColor else { return nil }
         return Award(
             icon: icon,
             title: title,

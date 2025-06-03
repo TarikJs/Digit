@@ -279,8 +279,8 @@ final class OnboardingViewModel: ObservableObject {
 
     private func checkBlockedUserNameAndProceed() async {
         await MainActor.run {
-            isCheckingUserName = true
-            errorMessage = nil
+        isCheckingUserName = true
+        errorMessage = nil
         }
         do {
             let response = try await SupabaseManager.shared.client

@@ -50,7 +50,8 @@ final class HabitViewModel: ObservableObject {
         repeatFrequency: String,
         weekdays: [Int]?,
         reminderTime: String?,
-        unit: String?
+        unit: String?,
+        tag: String?
     ) async {
         isLoading = true
         errorMessage = nil
@@ -70,7 +71,8 @@ final class HabitViewModel: ObservableObject {
                 reminderTime: reminderTime,
                 createdAt: Date(),
                 updatedAt: Date(),
-                unit: unit
+                unit: unit,
+                tag: tag
             )
             try await habitRepository.addHabit(habit)
             

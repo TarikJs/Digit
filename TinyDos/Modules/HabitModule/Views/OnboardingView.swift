@@ -26,7 +26,7 @@ struct OnboardingView: View {
                         .foregroundStyle(Color.digitBrand)
                         .accessibilityLabel("Back")
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
                 
@@ -37,7 +37,7 @@ struct OnboardingView: View {
                         Text(stepTitle)
                             .font(.plusJakartaSans(size: 24, weight: .bold))
                             .foregroundStyle(Color.digitBrand)
-                            .padding(.horizontal)
+                            .padding(.horizontal, 16)
                             .padding(.bottom, 8)
                         
                         // Step content
@@ -61,7 +61,7 @@ struct OnboardingView: View {
                                         .background(Color.digitGrayLight)
                                         .cornerRadius(10)
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, 16)
                             case .dateOfBirth:
                                 dateOfBirthStep
                             case .gender:
@@ -77,7 +77,7 @@ struct OnboardingView: View {
                             removal: .move(edge: .leading).combined(with: .opacity)
                         ))
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
                 }
                 .scrollDismissesKeyboard(.immediately)
                 
@@ -100,16 +100,15 @@ struct OnboardingView: View {
                     .opacity(viewModel.canProceedToNextStep && !viewModel.isCheckingUserName ? 1.0 : 0.5)
                     .disabled(!viewModel.canProceedToNextStep || viewModel.isCheckingUserName)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 16)
                 .background(Color.digitBackground)
             }
         }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard)
-        .onChange(of: scenePhase) { newPhase in
-            guard viewModel.currentStep == .email else { return }
-            if newPhase == .active {
+        .onChange(of: scenePhase) {
+            if viewModel.currentStep == .email, scenePhase == .active {
                 // Wait 2 seconds, then check verification
                 didAutoCheckVerification = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -152,7 +151,7 @@ struct OnboardingView: View {
                     .font(.plusJakartaSans(size: 16))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             
             VStack(spacing: 16) {
                 // First Name Field
@@ -193,7 +192,7 @@ struct OnboardingView: View {
                         .cornerRadius(10)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
     }
     
@@ -202,7 +201,7 @@ struct OnboardingView: View {
             Text("Pick a unique username. This will be visible to others.")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Username")
                     .font(.plusJakartaSans(size: 14))
@@ -222,7 +221,7 @@ struct OnboardingView: View {
                     .background(Color.digitGrayLight)
                     .cornerRadius(10)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
             if viewModel.isCheckingUserName {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -231,18 +230,18 @@ struct OnboardingView: View {
                         .font(.plusJakartaSans(size: 14))
                         .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             }
             if let error = viewModel.errorMessage, !error.isEmpty {
                 Text(error)
                     .font(.plusJakartaSans(size: 14))
                     .foregroundStyle(.red)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
             } else if !viewModel.isUserNameValid && !viewModel.userName.isEmpty {
                 Text("Usernames must be at least 3 characters, only letters, numbers, and underscores.")
                     .font(.plusJakartaSans(size: 14))
                     .foregroundStyle(.red)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
             }
         }
     }
@@ -252,7 +251,7 @@ struct OnboardingView: View {
             Text("We'll use your email only to notify you about important changes to the app, such as policy updates. We will never use it for marketing or spam.")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(Color.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("Email")
@@ -300,7 +299,7 @@ struct OnboardingView: View {
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
     }
     
@@ -309,7 +308,7 @@ struct OnboardingView: View {
             Text("You must be at least 18 years old to use Digit.")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             
             DatePicker(
                 "",
@@ -330,7 +329,7 @@ struct OnboardingView: View {
             Text("Select your pronouns")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             
             ForEach(Gender.allCases, id: \.self) { gender in
                 Button(action: {
@@ -355,7 +354,7 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
     }
     
@@ -364,7 +363,7 @@ struct OnboardingView: View {
             Text("This is only used to ensure units of measurement match your region. You can change this later in settings.")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             VStack(spacing: 16) {
                 ForEach(["us", "europe", "asia"], id: \ .self) { region in
                     Button(action: {
@@ -388,7 +387,7 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
     }
     
@@ -397,14 +396,14 @@ struct OnboardingView: View {
             Text("Stay on track by enabling reminders and notifications.")
                 .font(.plusJakartaSans(size: 16))
                 .foregroundStyle(Color.secondary)
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             Toggle(isOn: $viewModel.notificationsEnabled) {
                 Text("Enable notifications")
                     .font(.plusJakartaSans(size: 17, weight: .semibold))
                     .foregroundStyle(Color.primary)
             }
             .toggleStyle(SwitchToggleStyle(tint: Color.digitAccentRed))
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
         }
     }
 }

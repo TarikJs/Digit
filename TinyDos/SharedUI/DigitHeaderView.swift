@@ -1,68 +1,55 @@
 import SwiftUI
 
 public struct DigitHeaderView: View {
-    let name: String
-    var topPadding: CGFloat
-    var bottomPadding: CGFloat
+    let date: Date
     let onPlusTap: (() -> Void)?
-    var isEditMode: Bool = false
-    var onTrashTap: (() -> Void)? = nil
-
-    public init(name: String = "Welcome!", topPadding: CGFloat = 16, bottomPadding: CGFloat = 16, onPlusTap: (() -> Void)? = nil, isEditMode: Bool = false, onTrashTap: (() -> Void)? = nil) {
-        self.name = name
-        self.topPadding = topPadding
-        self.bottomPadding = bottomPadding
+    
+    public init(date: Date, onPlusTap: (() -> Void)? = nil) {
+        self.date = date
         self.onPlusTap = onPlusTap
-        self.isEditMode = isEditMode
-        self.onTrashTap = onTrashTap
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Image("AppLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-                    .background(
-                        Circle().fill(Color.white)
-                    )
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Welcome back")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.digitSecondaryText)
-                    Text(name)
-                        .font(.digitTitle)
-                        .foregroundStyle(Color.digitBrand)
+                    Text("Today")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(Color.black)
                         .accessibilityAddTraits(.isHeader)
+                    Text(formattedDate(date))
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(Color.digitSecondaryText)
                 }
                 Spacer()
-                // Plus button
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.digitBrand, lineWidth: DigitLayout.borderWidth)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.digitBrand))
-                    Image(systemName: "plus")
-                        .font(.digitIconMedium)
-                        .foregroundStyle(Color.white)
+                Button(action: { onPlusTap?() }) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.digitBrand)
+                        Image(systemName: "plus")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(Color.white)
+                    }
+                    .frame(width: 44, height: 44)
                 }
-                .frame(width: 36, height: 36)
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .onTapGesture {
-                    onPlusTap?()
-                }
+                .accessibilityLabel("Add Habit")
             }
-            .padding(.top, topPadding)
-            .padding(.horizontal, DigitLayout.Padding.horizontal)
-            .padding(.bottom, bottomPadding)
-            .background(Color.digitBackground.ignoresSafeArea(edges: .top))
+            .padding(.top, 16)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
         }
+        .background(Color.digitBackground.ignoresSafeArea(edges: .top))
+    }
+    
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        return formatter.string(from: date)
     }
 }
 
 #if DEBUG
 #Preview {
-    DigitHeaderView()
+    DigitHeaderView(date: Date())
 }
 #endif 

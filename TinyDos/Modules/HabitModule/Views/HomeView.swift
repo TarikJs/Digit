@@ -4,159 +4,217 @@ struct HomeView: View {
     var onHabitCompleted: () -> Void = {}
     @ObservedObject var viewModel: HomeViewModel
     @Binding var isEditMode: Bool
+    var headerPlusAction: () -> Void = {}
     @State private var progressCurrentPage: Int = 0
-    private let progressCards: [ProgressCardData] = [
-        .init(icon: "drop.fill", title: "Drink water", progress: "1", goal: "10", unit: "glasses", color: .digitHabitGreen),
-        .init(icon: "book.fill", title: "Read book", progress: "0", goal: "30", unit: "pages", color: .digitHabitPurple),
-        .init(icon: "bed.double.fill", title: "Sleep early", progress: "0", goal: "1", unit: "night", color: .digitHabitGreen),
-        .init(icon: "figure.walk", title: "Walk", progress: "0", goal: "5000", unit: "steps", color: .digitHabitGreen),
-        .init(icon: "flame.fill", title: "Burn calories", progress: "0", goal: "500", unit: "kcal", color: .digitHabitPurple),
-        .init(icon: "heart.fill", title: "Self care", progress: "0", goal: "1", unit: "activity", color: .digitHabitPurple)
-    ]
-    private var progressCardPairs: [[ProgressCardData]] {
-        stride(from: 0, to: progressCards.count, by: 2).map { i in
-            Array(progressCards[i..<min(i+2, progressCards.count)])
-        }
-    }
-    
-    // Global max width for all content
     private let globalMaxWidth: CGFloat = 500
-
-    // MARK: - Layout Constants
-    private enum Layout {
-        static let horizontalPadding: CGFloat = 16 // General horizontal margin for all sections
-
-        // General Section Title Spacing
-        static let sectionTitleTopPadding: CGFloat = 24
-        static let sectionTitleBottomPadding: CGFloat = 8
-
-        // Header Section
-        static let headerTopPadding: CGFloat = 2
-        static let headerBottomPadding: CGFloat = 8
-
-        // Calendar Section
-        static let calendarTopPadding: CGFloat = 16
-        static let calendarBottomPadding: CGFloat = 16
-
-        // Daily Progress Section
-        static let progressTitleTopPadding: CGFloat = 20
-        static let progressCarouselTopPadding: CGFloat = -6
-        static let progressCarouselBottomPadding: CGFloat = 0
-        static let progressDotTopPadding: CGFloat = 4
-
-        // Daily Completions Section
-        static let completionsTitleTopPadding: CGFloat = 6
-        static let completionsListTopPadding: CGFloat = -6
-
-        static let sectionSpacing: CGFloat = 0 // spacing between section title and next section
-    }
+    @State private var isSectionExpanded: Bool = true
+    // Tag state is now passed in
+    var customTags: [String]
+    var setCustomTags: ([String]) -> Void
+    @State private var isAddTagSheetPresented: Bool = false
+    @State private var newTagName: String = ""
+    // --- Tag creation state ---
+    // --- Edit Habit State ---
+    @State private var selectedHabitForEdit: Habit? = nil
+    @State private var isEditHabitSheetPresented: Bool = false
+    // ---
     
     var body: some View {
-        ZStack {
-            // Background removed to allow root background to show through
-            
+        ZStack(alignment: .top) {
+            Color(hex: "F5F6F7")
+                .ignoresSafeArea()
             VStack(spacing: 0) {
-                // MARK: - Header (Today/title row)
-                // Insert header here if not already present
-
-                // Gray section with sticky header and scrollable content
-                ZStack(alignment: .top) {
-                    Color.digitGrayLight
-                        .ignoresSafeArea()
-                    // Sticky header
-                    Color.digitBrand
-                        .frame(height: 48)
-                        .shadow(color: Color.black.opacity(0.03), radius: 2, y: 2)
-                        .overlay(
-                            HStack(spacing: 10) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.digitAccentRed)
-                                    .frame(width: 4, height: 24)
-                                Text("Your Goals")
-                                    .font(.plusJakartaSans(size: 22, weight: .bold))
-                                    .foregroundStyle(Color.white)
-                                    .accessibilityAddTraits(.isHeader)
-                                    .accessibilityLabel("Your Goals")
-                                Spacer()
-                            }
-                            .padding(.horizontal, DigitLayout.Padding.horizontal)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        )
-                        .overlay(
-                            Divider()
-                                .background(Color.digitDivider), alignment: .bottom
-                        )
-                        .zIndex(1)
-
-                    // Scrollable content
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 12) {
-                            // Spacer to prevent overlap with sticky header
-                            Color.clear.frame(height: 48)
-                            // MARK: - Habit List
-                            VStack(spacing: 12) {
-                                if viewModel.habits.isEmpty {
-                                    VStack(spacing: 12) {
-                                        Spacer(minLength: 32)
-                                        Image("asking-question")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 120, height: 120)
-                                            .accessibilityLabel("No habits yet")
-                                        Text("No habits yet. Add your first habit!")
-                                            .font(.digitBody)
-                                            .foregroundStyle(Color.digitBrand.opacity(0.7))
-                                            .multilineTextAlignment(.center)
-                                        Spacer(minLength: 32)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Section header
+                        Text("Habits")
+                            .font(.plusJakartaSans(size: 24, weight: .bold))
+                            .foregroundStyle(Color.digitBrand)
+                            .padding(.top, DigitLayout.Spacing.xl)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, DigitLayout.Spacing.medium)
+                        // Filter/tag bar
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: DigitLayout.Spacing.medium) {
+                                // ADD TAG button (now first)
+                                Button(action: { isAddTagSheetPresented = true }) {
+                                    HStack(spacing: DigitLayout.Spacing.xs) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 14, weight: .bold))
+                                        Text("ADD TAG")
+                                            .font(.plusJakartaSans(size: 14, weight: .semibold))
                                     }
-                                    .frame(maxWidth: .infinity)
-                                } else {
-                                    habitGoalCards
+                                    .foregroundStyle(Color.digitSecondaryText)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.digitSecondaryText, lineWidth: 1.2)
+                                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                                    )
+                                }
+                                .accessibilityLabel("Add tag")
+                                // ALL tag (selected example)
+                                Button(action: { /* TODO: Filter ALL */ }) {
+                                    Text("ALL")
+                                        .font(.plusJakartaSans(size: 14, weight: .semibold))
+                                        .foregroundStyle(Color.white)
+                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 12)
+                                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.digitBrand))
+                                }
+                                .accessibilityLabel("Show all habits")
+                                // Custom tags
+                                ForEach(customTags, id: \ .self) { tag in
+                                    Button(action: { /* TODO: Filter by tag */ }) {
+                                        Text(tag)
+                                            .font(.plusJakartaSans(size: 14, weight: .semibold))
+                                            .foregroundStyle(Color.digitSecondaryText)
+                                            .padding(.vertical, 4)
+                                            .padding(.horizontal, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .stroke(Color.digitSecondaryText, lineWidth: 1.2)
+                                                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                                            )
+                                    }
+                                    .accessibilityLabel("Show habits for tag \(tag)")
                                 }
                             }
-                            .padding(.top, 8)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, DigitLayout.Spacing.large)
                         }
-                        .frame(maxWidth: globalMaxWidth)
-                        .padding(.top, Layout.completionsListTopPadding)
-                        .padding(.horizontal, DigitLayout.Padding.horizontal)
-                        .padding(.bottom, 16)
+                        .sheet(isPresented: $isAddTagSheetPresented) {
+                            VStack(spacing: 24) {
+                                Text("Create New Tag")
+                                    .font(.plusJakartaSans(size: 20, weight: .bold))
+                                    .padding(.top, 32)
+                                TextField("Tag name", text: $newTagName)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .padding(.horizontal, 24)
+                                HStack(spacing: 16) {
+                                    Button("Cancel") {
+                                        isAddTagSheetPresented = false
+                                        newTagName = ""
+                                    }
+                                    .foregroundStyle(Color.digitSecondaryText)
+                                    Spacer()
+                                    Button("Save") {
+                                        let trimmed = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        if !trimmed.isEmpty && !customTags.contains(trimmed) {
+                                            setCustomTags(customTags + [trimmed])
+                                        }
+                                        isAddTagSheetPresented = false
+                                        newTagName = ""
+                                    }
+                                    .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    .foregroundStyle(Color.digitBrand)
+                                }
+                                .padding(.horizontal, 24)
+                                Spacer()
+                            }
+                            .presentationDetents([.medium])
+                        }
+                        // Section group (example: Self-Development)
+                        if !customTags.isEmpty {
+                            HStack {
+                                Text("CATEGORY") // Placeholder, can be dynamic later
+                                    .font(.plusJakartaSans(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.digitSecondaryText)
+                                Spacer()
+                                Button(action: { isSectionExpanded.toggle() }) {
+                                    Image(systemName: "chevron.down")
+                                        .rotationEffect(.degrees(isSectionExpanded ? 0 : -90))
+                                        .foregroundColor(Color.digitSecondaryText)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .padding(.trailing, 2)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, DigitLayout.Spacing.small)
+                        }
+                        if viewModel.activeHabits(on: viewModel.selectedDate).isEmpty {
+                            VStack(spacing: DigitLayout.Spacing.xl) {
+                                Image("Zero Tasks 3")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 220)
+                                    .accessibilityLabel("No habits illustration")
+                                    .padding(.top, 32)
+                                Text("No habits yet")
+                                    .font(.plusJakartaSans(size: 22, weight: .bold))
+                                    .foregroundStyle(Color.digitBrand)
+                                Text("Start your journey by creating your first habit. Building small routines leads to big results!")
+                                    .font(.plusJakartaSans(size: 16, weight: .regular))
+                                    .foregroundStyle(Color.digitSecondaryText)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 32)
+                        } else if isSectionExpanded {
+                            VStack(spacing: DigitLayout.Spacing.large) {
+                                ForEach(viewModel.activeHabits(on: viewModel.selectedDate)) { habit in
+                                    HStack(spacing: 0) {
+                                        // Icon with green ring
+                                        ZStack {
+                                            Circle()
+                                                .stroke(Color.digitTabBarGreen, lineWidth: 5)
+                                                .frame(width: 48, height: 48)
+                                            Image(systemName: habit.icon)
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(width: 28, height: 28)
+                                                .foregroundStyle(Color.digitTabBarGreen)
+                                        }
+                                        .padding(.leading, 16)
+                                        // Title and subtitle
+                                        VStack(alignment: .leading, spacing: DigitLayout.Spacing.xs) {
+                                            Text(habit.name)
+                                                .font(.plusJakartaSans(size: 18, weight: .semibold))
+                                                .foregroundStyle(Color.digitBrand)
+                                            Text("2 times a day") // TODO: Replace with real frequency
+                                                .font(.plusJakartaSans(size: 14, weight: .regular))
+                                                .foregroundStyle(Color.digitSecondaryText)
+                                        }
+                                        .padding(.leading, DigitLayout.Spacing.medium)
+                                        Spacer()
+                                        // Plus button
+                                        Button(action: { viewModel.incrementProgress(for: habit, on: viewModel.selectedDate) }) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: DigitLayout.cornerRadius, style: .continuous)
+                                                    .stroke(Color.digitBrand, lineWidth: 2)
+                                                    .background(RoundedRectangle(cornerRadius: DigitLayout.cornerRadius).fill(Color.white))
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: 22, weight: .bold))
+                                                    .foregroundStyle(Color.digitBrand)
+                                            }
+                                            .frame(width: 44, height: 44)
+                                        }
+                                        .padding(.trailing, 16)
+                                    }
+                                    .frame(height: 72)
+                                    .background(Color.white)
+                                    .cornerRadius(DigitLayout.cornerRadius)
+                                    .shadow(color: Color.black.opacity(0.03), radius: 2, y: 1)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, DigitLayout.Spacing.xxl)
+                        }
                     }
-                }
-                .background(Color.digitGrayLight)
-
-                // MARK: - Calendar (Date Selector) at the bottom
-                Divider()
-                    .background(Color.digitDivider)
-                dateSelector
-                    .padding(.top, 8)
-                    .padding(.horizontal, Layout.horizontalPadding)
-                    .padding(.bottom, 11)
-            }
-            .background(Color.digitBackground)
-
-            // Floating pencil/checkmark button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        withAnimation(.spring()) { isEditMode.toggle() }
-                    }) {
-                        Image(systemName: isEditMode ? "checkmark" : "trash.fill")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(Color.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.digitAccentRed)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .shadow(color: Color.black.opacity(0.08), radius: 2, y: 1)
-                            .accessibilityLabel(isEditMode ? "Done editing" : "Edit habits")
-                    }
-                    .padding(.trailing, DigitLayout.Padding.horizontal)
-                    .padding(.bottom, 96)
+                    .padding(.top, 0)
+                    .frame(maxWidth: globalMaxWidth)
+                    .padding(.bottom, 0)
+                    
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea(edges: .bottom)
         }
-        .preferredColorScheme(.light)
+        .navigationBarHidden(true)
         .alert("Error", isPresented: .init(
             get: { viewModel.errorMessage != nil },
             set: { _ in viewModel.errorMessage = nil }
@@ -168,59 +226,87 @@ struct HomeView: View {
         .onAppear {
             viewModel.onHabitCompleted = onHabitCompleted
         }
+        .preferredColorScheme(.light)
+        .sheet(isPresented: $isEditHabitSheetPresented) {
+            if let habit = selectedHabitForEdit {
+                EditHabitView(
+                    habit: habit,
+                    onSave: { updatedHabit in
+                        viewModel.updateHabit(updatedHabit)
+                        isEditHabitSheetPresented = false
+                    },
+                    onDelete: {
+                        viewModel.deleteHabit(habit)
+                        isEditHabitSheetPresented = false
+                    },
+                    onCancel: {
+                        isEditHabitSheetPresented = false
+                    }
+                )
+            }
+        }
     }
-    
-    private var dateSelector: some View {
-        HStack(spacing: 6) {
+
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        return formatter.string(from: date)
+    }
+
+    private var calendarStrip: some View {
+        HStack(spacing: 16) {
             ForEach(-3...3, id: \ .self) { offset in
-                let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+                let date = Calendar.current.date(byAdding: .day, value: offset, to: viewModel.selectedDate) ?? viewModel.selectedDate
                 let isSelected = Calendar.current.isDate(date, inSameDayAs: viewModel.selectedDate)
                 let isToday = Calendar.current.isDateInToday(date)
                 let completed = viewModel.completedHabitsCount(on: date)
                 let total = viewModel.activeHabits(on: date).count
-                let textColor: Color = isToday ? Color.digitAccentRed : (isSelected ? Color.digitBrand : Color.digitSecondaryText)
-                VStack(spacing: 2) {
+                let textColor: Color = isToday ? Color.digitTabBarGreen : (isSelected ? Color.digitBrand : Color.digitSecondaryText)
+                VStack(spacing: DigitLayout.Spacing.xs) {
                     Text(dayNumber(from: date))
-                        .font(.plusJakartaSans(size: 16, weight: .semibold))
+                        .font(.plusJakartaSans(size: 18, weight: .semibold))
                         .foregroundStyle(textColor)
-                    Text(dayName(from: date))
-                        .font(.plusJakartaSans(size: 12))
+                    Text(dayShortName(from: date))
+                        .font(.plusJakartaSans(size: 12, weight: .medium))
                         .foregroundStyle(textColor)
                     Text("\(completed)/\(total)")
                         .font(.plusJakartaSans(size: 11, weight: .medium))
                         .foregroundStyle(textColor)
-                    // Underline for selected day or today
                     Rectangle()
-                        .fill(isToday ? Color.digitAccentRed : (isSelected ? Color.digitBrand : Color.clear))
+                        .fill(isToday ? Color.digitTabBarGreen : (isSelected ? Color.digitBrand : Color.clear))
                         .frame(height: 3)
                         .cornerRadius(1.5)
-                        .padding(.top, 2)
+                        .padding(.top, DigitLayout.Spacing.xs)
                 }
-                .frame(width: 48, height: 60)
+                .frame(width: 44, height: 60)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    viewModel.selectDate(date)
+                    withAnimation(.easeInOut) {
+                        viewModel.selectedDate = date
+                        viewModel.selectDate(date)
+                    }
                 }
                 .accessibilityElement()
-                .accessibilityLabel("\(dayName(from: date)), \(completed) completed out of \(total)")
+                .accessibilityLabel("\(dayShortName(from: date)), \(completed) completed out of \(total)")
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
         .frame(maxWidth: .infinity)
     }
-    
+
     private func dayNumber(from date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd"
+        formatter.dateFormat = "d"
         return formatter.string(from: date)
     }
-    
-    private func dayName(from date: Date) -> String {
+
+    private func dayShortName(from date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: date)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EE"
+        return formatter.string(from: date).uppercased()
     }
-    
+
     // MARK: - Split out HabitGoalCards for type-checking
     private func isDateToday(_ date: Date) -> Bool {
         let calendar = Calendar.current
@@ -236,11 +322,16 @@ struct HomeView: View {
                 progress: viewModel.progress(for: habit, on: viewModel.selectedDate),
                 goal: viewModel.goal(for: habit, on: viewModel.selectedDate),
                 unit: habit.unit,
+                tag: habit.tag,
                 onIncrement: { viewModel.incrementProgress(for: habit, on: viewModel.selectedDate) },
                 onDecrement: { viewModel.decrementProgress(for: habit, on: viewModel.selectedDate) },
                 buttonsEnabled: isToday && !viewModel.isUpdatingProgress(for: habit, on: viewModel.selectedDate),
                 isEditMode: isEditMode,
-                onDelete: isEditMode ? { viewModel.deleteHabit(habit) } : nil
+                onDelete: isEditMode ? { viewModel.deleteHabit(habit) } : nil,
+                onTap: {
+                    selectedHabitForEdit = habit
+                    isEditHabitSheetPresented = true
+                }
             )
             .id(habit.id)
             .padding(.vertical, 2)
@@ -294,7 +385,7 @@ struct HabitRow: View {
 }
 
 #Preview {
-    HomeView(viewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID()), isEditMode: .constant(false))
+    HomeView(viewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID()), isEditMode: .constant(false), customTags: [], setCustomTags: { _ in })
 }
 
 // MARK: - Progress Card Data

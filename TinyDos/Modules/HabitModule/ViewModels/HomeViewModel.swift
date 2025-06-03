@@ -47,7 +47,9 @@ final class HomeViewModel: ObservableObject {
         self.habitRepository = habitRepository
         self.progressRepository = progressRepository
         self.userId = userId
-        Task { await loadHabitsAndProgressFromCache() }
+        Task {
+            await self.syncAndLoadHabits()
+        }
         // Background sync
         Task.detached { [weak self] in
             await self?.syncHabitsAndProgress()
@@ -62,6 +64,19 @@ final class HomeViewModel: ObservableObject {
         }
         Task {
             await loadHabitsAndProgressForVisibleDates()
+        }
+    }
+    
+    func updateHabit(_ habit: Habit) {
+        Task {
+            do {
+                try await habitRepository.updateHabit(habit)
+                await syncAndLoadHabits()
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to update habit: \(error.localizedDescription)"
+                }
+            }
         }
     }
     
@@ -173,7 +188,7 @@ final class HomeViewModel: ObservableObject {
             }
         }
     }
-
+    
     private func setupDateObserver() {
         // Setup any observers if needed
     }
@@ -295,7 +310,7 @@ final class HomeViewModel: ObservableObject {
     func isHabitCompleted(_ habit: Habit, on date: Date) -> Bool {
         let key = dateKey(for: date)
         if let progress = habitHistory[habit.id]?[key] {
-            return progress.progress >= progress.goal
+            return progress.progress >= progress.goal && progress.goal > 0
         }
         return false
     }
@@ -303,7 +318,7 @@ final class HomeViewModel: ObservableObject {
     // MARK: - User ID Update
     public func updateUserId(_ newUserId: UUID) {
         self.userId = newUserId
-        Task { await loadHabitsAndProgressFromCache() }
+        Task { await syncAndLoadHabits() }
     }
 
     /// Returns the list of habits that are active on a given date (startDate <= date <= endDate, and matches repeatFrequency/weekday if set)
@@ -350,9 +365,8 @@ final class HomeViewModel: ObservableObject {
     /// One-time migration: For any habit missing a unit, update it using measurement_type and user region.
     private func migrateHabitUnitsIfNeeded() async {
         let userRegion: String
-        // Replace with actual region fetch logic if available
         if let region = try? await SupabaseProfileService().fetchProfile().region {
-            userRegion = region ?? "us"
+            userRegion = region
         } else {
             userRegion = "us"
         }
@@ -405,5 +419,22 @@ final class HomeViewModel: ObservableObject {
     private func syncHabitsAndProgress() async {
         // This should trigger a remote fetch and update the cache
         await loadHabitsAndProgressForVisibleDates()
+    }
+
+    /// Syncs habits with server and loads them into the UI
+    @MainActor
+    func syncAndLoadHabits() async {
+        do {
+            try await habitRepository.syncHabitsWithServer()
+            await loadHabitsAndProgressFromCache()
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "Failed to sync habits: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func completedHabits(for date: Date) -> [Habit] {
+        return habits.filter { isHabitCompleted($0, on: date) }
     }
 } 

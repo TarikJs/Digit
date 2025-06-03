@@ -30,6 +30,7 @@ extension HabitEntity {
     @NSManaged public var createdAt: Date?
     @NSManaged public var updatedAt: Date?
     @NSManaged public var unit: String?
+    @NSManaged public var tag: String?
 
 }
 

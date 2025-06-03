@@ -33,6 +33,7 @@ final class NewHabitViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var availableUnits: [String] = []
     @Published var selectedUnit: String? = nil
+    @Published var tag: String? = nil
     
     // MARK: - Save Callback
     var onSave: ((Bool) -> Void)?
@@ -111,7 +112,8 @@ final class NewHabitViewModel: ObservableObject {
             repeatFrequency: repeatFrequency.rawValue,
             weekdays: repeatFrequency == .custom ? Array(selectedWeekdays) : nil,
             reminderTime: alertEnabled ? formattedTime(alertTime) : nil,
-            unit: selectedUnit
+            unit: selectedUnit,
+            tag: tag
         )
         if habitViewModel.errorMessage == nil {
             onSave?(true)
@@ -121,7 +123,7 @@ final class NewHabitViewModel: ObservableObject {
         }
     }
     
-    private func formattedTime(_ date: Date) -> String {
+    func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         return formatter.string(from: date)

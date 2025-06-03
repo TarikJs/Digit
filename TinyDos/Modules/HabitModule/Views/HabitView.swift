@@ -42,7 +42,7 @@ struct HabitView: View {
                                         .font(.digitHeadline)
                                         .digitButton()
                                 }
-                                .padding(.horizontal, DigitLayout.Padding.horizontal)
+                                .padding(.horizontal, 16)
                             }
                             .padding()
                         }
@@ -90,7 +90,7 @@ struct HabitView: View {
                 .foregroundStyle(Color.digitBrand)
         }
         .digitCard()
-        .padding(.horizontal, DigitLayout.Padding.horizontal)
+        .padding(.horizontal, 16)
     }
     
     private var createHabitSheet: some View {
@@ -110,7 +110,8 @@ struct HabitView: View {
                             repeatFrequency: "daily",
                             weekdays: nil,
                             reminderTime: nil,
-                            unit: nil
+                            unit: nil,
+                            tag: nil
                         )
                     }
                 }
@@ -163,12 +164,12 @@ struct CreateHabitForm: View {
                             .stroke(Color.digitBrand, lineWidth: DigitLayout.borderWidth)
                     )
             }
-            .padding(.horizontal, DigitLayout.Padding.horizontal)
+            .padding(.horizontal, 16)
             VStack(alignment: .leading, spacing: DigitLayout.Spacing.small) {
                 Text("Preferred Time")
                     .font(.digitSubheadline)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                    .padding(.horizontal, 16)
                 ForEach(PreferredHabitTime.allCases, id: \ .self) { time in
                     Button(action: {
                         preferredTime = time
@@ -193,7 +194,7 @@ struct CreateHabitForm: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                    .padding(.horizontal, 16)
                 }
             }
             Spacer()
@@ -204,7 +205,7 @@ struct CreateHabitForm: View {
                     .font(.digitHeadline)
                     .digitButton()
             }
-            .padding(.horizontal, DigitLayout.Padding.horizontal)
+            .padding(.horizontal, 16)
             .padding(.bottom, DigitLayout.Spacing.large)
         }
     }

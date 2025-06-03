@@ -105,8 +105,8 @@ final class AuthCoordinator: ObservableObject {
 extension AuthCoordinator {
     @MainActor
     func handleOnboardingCompletion() async {
-        withAnimation {
-            currentState = .main
+            withAnimation {
+                currentState = .main
         }
     }
 

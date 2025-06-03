@@ -44,7 +44,7 @@ final class AccountViewModel: ObservableObject {
     }
 
     func updateProfile(firstName: String, lastName: String) async {
-        guard var currentProfile = profile else { return }
+        guard let currentProfile = profile else { return }
         isLoading = true
         errorMessage = nil
         

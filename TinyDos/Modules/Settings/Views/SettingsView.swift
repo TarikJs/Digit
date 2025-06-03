@@ -312,7 +312,7 @@ struct AccountProfileCard: View {
             Spacer()
         }
         .padding(.vertical, 8)
-        .padding(.horizontal, 0)
+        .padding(.horizontal, 16)
     }
 }
 
@@ -625,7 +625,7 @@ struct ProfileEditView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Delete Account")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.digitAccentRed)
                             Text("This will permanently delete your account and all data tied to it.")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
@@ -635,7 +635,7 @@ struct ProfileEditView: View {
                         Button(action: { /* Delete account action */ }) {
                             Text("Delete")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.digitAccentRed)
                         }
                     }
                     .padding(.vertical, 12)
@@ -644,7 +644,7 @@ struct ProfileEditView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Delete All Habit Data")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.digitAccentRed)
                             Text("This will delete all habit data for your account and may affect your rewards and streaks.")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
@@ -654,7 +654,7 @@ struct ProfileEditView: View {
                         Button(action: { /* Delete all habit data action */ }) {
                             Text("Delete")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.digitAccentRed)
                         }
                     }
                     .padding(.vertical, 12)

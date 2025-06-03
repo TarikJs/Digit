@@ -2,11 +2,14 @@ import SwiftUI
 
 // MARK: - App Colors
 extension Color {
-    /// Official app background color (#FFFBF9)
-    static let digitBackground = Color(hex: "FFFFFF")
+    /// Official app background color (slightly off-white to avoid iOS separator)
+    static let digitBackground = Color(hex: "FDFDFD")
     
-    /// Official brand color (#000000)
-    static let digitBrand = Color(hex: "000000")
+    /// Tab bar background color (#FFFBF9)
+    static let tabBarColor = Color(hex: "FFFBF9")
+    
+    /// Official brand color (#2803E0)
+    static let digitBrand = Color(hex: "2803E0")
     
     /// Official accent color 1 (#D1ED36)
     static let digitAccent1 = Color(hex: "D1ED36")
@@ -15,7 +18,7 @@ extension Color {
     static let digitAccent2 = Color(hex: "F3DAFF")
     
     /// Official accent color red (#FC351C)
-    static let digitAccentRed = Color(hex: "FC351C")
+    static let digitAccentRed = Color(hex: "000000")
 
     /// Color for outline elements (same as brand color)
     static let digitOutlineBlue = digitBrand
@@ -95,4 +98,10 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+}
+
+// MARK: - Custom Colors
+extension Color {
+    /// Custom green accent for tab bar (#086C4B)
+    static let digitTabBarGreen = Color(hex: "086C4B")
 } 

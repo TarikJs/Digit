@@ -21,17 +21,17 @@
 		DC1842DD2DD81983005635D4 /* Exceptions for "TinyDos" folder in "TinyDos" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"AwardEntity+CoreDataClass.swift",
-				"AwardEntity+CoreDataProperties.swift",
+				"cashes/AwardEntity+CoreDataClass.swift",
+				"cashes/AwardEntity+CoreDataProperties.swift",
+				"cashes/HabitEntity+CoreDataClass.swift",
+				"cashes/HabitEntity+CoreDataProperties.swift",
+				"cashes/ProgressEntity+CoreDataClass.swift",
+				"cashes/ProgressEntity+CoreDataProperties.swift",
+				"cashes/UserProfileEntity+CoreDataClass.swift",
+				"cashes/UserProfileEntity+CoreDataProperties.swift",
 				Context.md,
-				"HabitEntity+CoreDataClass.swift",
-				"HabitEntity+CoreDataProperties.swift",
 				Info.plist,
-				"ProgressEntity+CoreDataClass.swift",
-				"ProgressEntity+CoreDataProperties.swift",
 				README.md,
-				"UserProfileEntity+CoreDataClass.swift",
-				"UserProfileEntity+CoreDataProperties.swift",
 			);
 			target = DCA803B52DCA76D100028F5D /* TinyDos */;
 		};

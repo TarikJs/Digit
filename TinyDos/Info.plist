@@ -6,8 +6,7 @@
 	<string>TinyDos</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>PlusJakartaSans-Regular.ttf
-PlusJakartaSans-Regular.ttf</string>
+		<string>PlusJakartaSans-Regular.ttf</string>
 		<string>PlusJakartaSans-Italic.ttf</string>
 		<string>PlusJakartaSans-Medium.ttf</string>
 		<string>PlusJakartaSans-MediumItalic.ttf</string>

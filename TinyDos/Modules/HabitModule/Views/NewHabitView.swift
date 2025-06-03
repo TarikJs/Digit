@@ -20,12 +20,19 @@ struct NewHabitView: View {
     @StateObject private var viewModel = NewHabitViewModel()
     let onDismiss: () -> Void
     var hideCancelButton: Bool = false
+    let customTags: [String]
+    let setCustomTags: ([String]) -> Void
+    @State private var selectedTag: String = ""
+    @State private var isAddTagSheetPresented: Bool = false
+    @State private var newTagName: String = ""
 
-    init(onDismiss: @escaping () -> Void, userId: String, homeViewModel: HomeViewModel, hideCancelButton: Bool = false) {
+    init(onDismiss: @escaping () -> Void, userId: String, homeViewModel: HomeViewModel, hideCancelButton: Bool = false, customTags: [String], setCustomTags: @escaping ([String]) -> Void) {
         self.onDismiss = onDismiss
         self.homeViewModel = homeViewModel
         self.hideCancelButton = hideCancelButton
         _habitViewModel = StateObject(wrappedValue: HabitViewModel(habitRepository: HabitRepository(), userId: userId))
+        self.customTags = customTags
+        self.setCustomTags = setCustomTags
     }
 
     var body: some View {
@@ -39,6 +46,74 @@ struct NewHabitView: View {
                         Divider().background(Color.digitDivider)
                         // Card content
                         VStack(alignment: .leading, spacing: 28) {
+                            // Tag assignment section
+                            if !customTags.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Assign to Category")
+                                        .font(.plusJakartaSans(size: 18, weight: .semibold))
+                                        .foregroundStyle(Color.digitBrand)
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            Button(action: { isAddTagSheetPresented = true }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "plus")
+                                                        .font(.system(size: 14, weight: .bold))
+                                                    Text("ADD TAG")
+                                                        .font(.plusJakartaSans(size: 14, weight: .semibold))
+                                                }
+                                                .foregroundStyle(Color.digitSecondaryText)
+                                                .padding(.vertical, 4)
+                                                .padding(.horizontal, 12)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 6)
+                                                        .stroke(Color.digitSecondaryText, lineWidth: 1.2)
+                                                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                                                )
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel("Add tag")
+                                            ForEach(customTags, id: \.self) { tag in
+                                                Button(action: { selectedTag = tag }) {
+                                                    Text(tag)
+                                                        .font(.plusJakartaSans(size: 14, weight: .semibold))
+                                                        .foregroundStyle(selectedTag == tag ? Color.white : Color.digitSecondaryText)
+                                                        .padding(.vertical, 4)
+                                                        .padding(.horizontal, 12)
+                                                        .background(
+                                                            RoundedRectangle(cornerRadius: 6)
+                                                                .fill(selectedTag == tag ? Color.digitBrand : Color.clear)
+                                                        )
+                                                        .overlay(
+                                                            RoundedRectangle(cornerRadius: 6)
+                                                                .stroke(selectedTag == tag ? Color.digitBrand : Color.digitSecondaryText, lineWidth: 1.2)
+                                                        )
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                        }
+                                        .padding(.horizontal, 4)
+                                    }
+                                }
+                            } else {
+                                Button(action: { isAddTagSheetPresented = true }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 14, weight: .bold))
+                                        Text("ADD TAG")
+                                            .font(.plusJakartaSans(size: 14, weight: .semibold))
+                                    }
+                                    .foregroundStyle(Color.digitSecondaryText)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.digitSecondaryText, lineWidth: 1.2)
+                                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Add tag")
+                            }
                             nameSection
                             Divider().background(Color.digitDivider)
                             goalSection
@@ -72,6 +147,37 @@ struct NewHabitView: View {
             )) {
                 Alert(title: Text("Error"), message: Text(habitViewModel.errorMessage ?? ""), dismissButton: .default(Text("OK")))
             }
+            .sheet(isPresented: $isAddTagSheetPresented) {
+                VStack(spacing: 24) {
+                    Text("Create New Tag")
+                        .font(.plusJakartaSans(size: 20, weight: .bold))
+                        .padding(.top, 32)
+                    TextField("Tag name", text: $newTagName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.horizontal, 24)
+                    HStack(spacing: 16) {
+                        Button("Cancel") {
+                            isAddTagSheetPresented = false
+                            newTagName = ""
+                        }
+                        .foregroundStyle(Color.digitSecondaryText)
+                        Spacer()
+                        Button("Save") {
+                            let trimmed = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty && !customTags.contains(trimmed) {
+                                setCustomTags(customTags + [trimmed])
+                            }
+                            isAddTagSheetPresented = false
+                            newTagName = ""
+                        }
+                        .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .foregroundStyle(Color.digitBrand)
+                    }
+                    .padding(.horizontal, 24)
+                    Spacer()
+                }
+                .presentationDetents([.medium])
+            }
         }
         .onAppear {
             habitViewModel.onHabitCreated = {
@@ -90,7 +196,7 @@ struct NewHabitView: View {
                 .overlay(
                     HStack(spacing: 10) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.digitAccentRed)
+                            .fill(Color.white)
                             .frame(width: 4, height: 24)
                         Text("New Habit")
                             .font(.plusJakartaSans(size: 22, weight: .bold))
@@ -107,7 +213,7 @@ struct NewHabitView: View {
                             .accessibilityLabel("Cancel")
                         }
                     }
-                    .padding(.horizontal, DigitLayout.Padding.horizontal)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 )
                 .overlay(
@@ -233,7 +339,7 @@ struct NewHabitView: View {
                 DatePicker("Start Date", selection: $viewModel.startDate, displayedComponents: .date)
                     .labelsHidden()
                     .font(.plusJakartaSans(size: 16, weight: .regular))
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                     .background(Color.white)
                     .foregroundStyle(Color.digitBrand)
@@ -250,7 +356,7 @@ struct NewHabitView: View {
                 ), in: viewModel.startDate..., displayedComponents: .date)
                     .labelsHidden()
                     .font(.plusJakartaSans(size: 16, weight: .regular))
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                     .background(Color.white)
                     .cornerRadius(10)
@@ -441,7 +547,19 @@ struct NewHabitView: View {
     private var saveButtonSection: some View {
         Button(action: {
             Task {
-                await viewModel.saveHabit(using: habitViewModel)
+                await habitViewModel.createNewHabit(
+                    name: viewModel.name,
+                    dailyGoal: viewModel.goalPerDay,
+                    icon: viewModel.selectedIcon?.systemName ?? "questionmark.circle",
+                    startDate: viewModel.startDate,
+                    endDate: viewModel.endDate,
+                    repeatFrequency: viewModel.repeatFrequency.rawValue,
+                    weekdays: Array(viewModel.selectedWeekdays),
+                    reminderTime: viewModel.alertEnabled ? viewModel.formattedTime(viewModel.alertTime) : nil,
+                    unit: viewModel.selectedUnit,
+                    tag: selectedTag.isEmpty ? nil : selectedTag
+                )
+                onDismiss()
             }
         }) {
             HStack {
@@ -449,7 +567,7 @@ struct NewHabitView: View {
                     ProgressView()
                         .progressViewStyle(.circular)
                 }
-                Text("Save Habit")
+                Text("Create Habit")
                     .font(.plusJakartaSans(size: 18, weight: .semibold))
                     .foregroundStyle(Color.white)
             }
@@ -524,7 +642,9 @@ private class MockHabitService: HabitServiceProtocol {
     NewHabitView(
         onDismiss: {},
         userId: "preview-user-id",
-        homeViewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
+        homeViewModel: HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID()),
+        customTags: [],
+        setCustomTags: { _ in }
     )
 }
 #endif 

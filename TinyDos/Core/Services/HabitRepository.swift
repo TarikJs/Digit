@@ -5,6 +5,7 @@ protocol HabitRepositoryProtocol {
     func addHabit(_ habit: Habit) async throws
     func updateHabit(_ habit: Habit) async throws
     func deleteHabit(_ habit: Habit) async throws
+    func syncHabitsWithServer() async throws
 }
 
 final class HabitRepository: HabitRepositoryProtocol {
@@ -46,6 +47,33 @@ final class HabitRepository: HabitRepositoryProtocol {
         try await localStore.deleteHabit(habit)
         Task.detached { [weak self] in
             try? await self?.remoteService.deleteHabit(id: habit.id)
+        }
+    }
+    // MARK: - Two-way Sync
+    /// Syncs local and remote habits: uploads local-only habits, caches remote-only habits, and clears cache for new accounts.
+    func syncHabitsWithServer() async throws {
+        let localHabits = try await localStore.fetchHabits()
+        let remoteHabits = try await remoteService.fetchHabits()
+        let localIds = Set(localHabits.map { $0.id })
+        let remoteIds = Set(remoteHabits.map { $0.id })
+
+        // 1. Upload local-only habits to server
+        let localOnly = localHabits.filter { !remoteIds.contains($0.id) }
+        for habit in localOnly {
+            try await remoteService.addHabit(habit)
+        }
+
+        // 2. Cache remote-only habits locally
+        let remoteOnly = remoteHabits.filter { !localIds.contains($0.id) }
+        for habit in remoteOnly {
+            try await localStore.saveHabit(habit)
+        }
+
+        // 3. If server is empty (new account), clear local cache
+        if remoteHabits.isEmpty && !localHabits.isEmpty {
+            for habit in localHabits {
+                try await localStore.deleteHabit(habit)
+            }
         }
     }
 } 

@@ -1,6 +1,6 @@
 import SwiftUI
 
-final class StatsViewModel: ObservableObject {
+final class ProgressViewModel: ObservableObject {
     // MARK: - Dependencies
     private let habitRepository: HabitRepositoryProtocol
     private let progressRepository: ProgressRepositoryProtocol
@@ -151,8 +151,8 @@ final class StatsViewModel: ObservableObject {
             // For calendar cards
             var calendarCards: [HabitCalendarData] = []
             // For overall completion rate
-            var totalCompletedHabitDays = 0
             let totalTrackedHabitDays = habits.count * 90
+            let totalCompletedHabitDays = 0
             for habit in habits {
                 let habitId = habit.id
                 let allProgress = try await progressRepository.fetchProgress()
@@ -261,6 +261,67 @@ final class StatsViewModel: ObservableObject {
                 self.isLoading = false
             }
         }
+    }
+    
+    // MARK: - Calendar Dot Data for Current Month
+    var completedDays: [Int] {
+        guard let monthDays = currentMonthDays else { return [] }
+        return monthDays.filter { $0.status == .completed }.map { $0.day }
+    }
+    var partialDays: [Int] {
+        guard let monthDays = currentMonthDays else { return [] }
+        return monthDays.filter { $0.status == .partial }.map { $0.day }
+    }
+    var missedDays: [Int] {
+        guard let monthDays = currentMonthDays else { return [] }
+        return monthDays.filter { $0.status == .missed }.map { $0.day }
+    }
+    // Helper to get all days in the current month with their status
+    private var currentMonthDays: [CalendarDayStatus]? {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.year, .month], from: now)
+        guard let firstOfMonth = calendar.date(from: components) else { return nil }
+        let range = calendar.range(of: .day, in: .month, for: firstOfMonth) ?? 1..<31
+        // Aggregate all habits' progress for each day
+        var dayStatus: [Int: CalendarDayStatus.Status] = [:]
+        for day in range {
+            let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) ?? firstOfMonth
+            var completed = false, partial = false, missed = false
+            for habit in calendarData {
+                if let habitDay = habit.days.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+                    if habitDay.progress >= habitDay.goal && habitDay.goal > 0 {
+                        completed = true
+                    } else if habitDay.progress > 0 && habitDay.progress < habitDay.goal {
+                        partial = true
+                    } else if habitDay.progress == 0 {
+                        missed = true
+                    }
+                }
+            }
+            let status: CalendarDayStatus.Status = completed ? .completed : partial ? .partial : missed ? .missed : .none
+            dayStatus[day] = status
+        }
+        return range.map { CalendarDayStatus(day: $0, status: dayStatus[$0] ?? .none) }
+    }
+    struct CalendarDayStatus {
+        let day: Int
+        let status: Status
+        enum Status { case completed, partial, missed, none }
+    }
+    
+    // MARK: - Completed Habits for a Given Date
+    func completedHabits(for date: Date) -> [Habit] {
+        let calendar = Calendar.current
+        var completed: [Habit] = []
+        for habit in habits {
+            if let habitDay = calendarData.first(where: { $0.id == habit.id })?.days.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+                if habitDay.progress >= habitDay.goal && habitDay.goal > 0 {
+                    completed.append(habit)
+                }
+            }
+        }
+        return completed
     }
 }
 

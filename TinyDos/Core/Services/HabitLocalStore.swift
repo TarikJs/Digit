@@ -76,7 +76,8 @@ extension HabitEntity {
             reminderTime: reminderTime,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            unit: unit
+            unit: unit,
+            tag: self.tag
         )
     }
     
@@ -95,5 +96,6 @@ extension HabitEntity {
         self.createdAt = habit.createdAt
         self.updatedAt = habit.updatedAt
         self.unit = habit.unit
+        self.tag = habit.tag
     }
 } 

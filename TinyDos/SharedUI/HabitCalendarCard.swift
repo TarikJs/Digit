@@ -47,7 +47,7 @@ public struct HabitCalendarCard<Data: HabitCalendarDataProtocol>: View {
                 .accessibilityLabel("Info about this card")
             }
             .padding(.top, 10)
-            .padding(.horizontal, 0)
+            .padding(.horizontal, 16)
             Divider()
                 .background(Color.digitDivider)
                 .padding(.vertical, 4)
@@ -72,7 +72,7 @@ public struct HabitCalendarCard<Data: HabitCalendarDataProtocol>: View {
                     .scaleEffect(0.95)
             }
             .padding(.top, 4)
-            .padding(.horizontal, 0)
+            .padding(.horizontal, 16)
             .padding(.bottom, 10)
         }
         .padding(DigitLayout.Padding.content)

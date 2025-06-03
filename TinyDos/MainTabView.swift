@@ -1,137 +1,141 @@
 import SwiftUI
-import ConfettiSwiftUI
 
 struct MainTabView: View {
-    @EnvironmentObject private var authCoordinator: AuthCoordinator
-    @EnvironmentObject private var authViewModel: AuthViewModel
-    
-    @StateObject private var homeViewModel = HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
-    @State private var isLoading: Bool
-    @State private var confettiTrigger = 0
-    @State private var showNewHabitSheet = false
     @State private var selectedTab: Int = 0
-    @StateObject private var accountViewModel = AccountViewModel(
-        profileService: SupabaseProfileService(),
-        authService: SupabaseAuthService()
-    )
+    @State private var selectedDate: Date = Date()
     @State private var isEditMode: Bool = false
-    
-    // Custom initializer for preview/test
-    init(isLoading: Bool = true) {
-        _isLoading = State(initialValue: isLoading)
-    }
-    
-    var headerName: String {
-        let name: String
-        if let profile = authViewModel.currentUserProfile {
-            if let userName = profile.userName, !userName.isEmpty {
-                name = userName
-            } else {
-                name = "\(profile.firstName) \(profile.lastName)"
-            }
-        } else {
-            name = "Welcome!" // Placeholder until user is logged in
-        }
-        print("[DEBUG] MainTabView headerName computed: \(name)")
-        return name
-    }
-    
+    @State private var showingNewHabitSheet = false
+    // Dummy HomeViewModel for preview/testing
+    @StateObject private var homeViewModel = HomeViewModel(habitRepository: HabitRepository(), progressRepository: ProgressRepository(), userId: UUID())
+    @State private var customTags: [String] = []
     var body: some View {
-        if isLoading {
-            ProgressView("Loading...")
-                .onAppear {
-                    Task {
-                        do {
-                            let session = try await SupabaseManager.shared.client.auth.session
-                            let userId = session.user.id
-                            await MainActor.run {
-                                homeViewModel.updateUserId(userId)
-                                isLoading = false
-                            }
-                        } catch {
-                            // Optionally handle error (e.g., show an error message)
-                        }
+        ZStack {
+            VStack(spacing: 0) {
+                TabView(selection: $selectedTab) {
+                    // Home tab
+                    VStack(spacing: 0) {
+                        DigitHeaderView(date: selectedDate, onPlusTap: { showingNewHabitSheet = true })
+                        CalendarStrip(selectedDate: $selectedDate)
+                            .padding(.top, 16)
+                        HomeView(
+                            onHabitCompleted: {},
+                            viewModel: homeViewModel,
+                            isEditMode: $isEditMode,
+                            headerPlusAction: { showingNewHabitSheet = true },
+                            customTags: customTags,
+                            setCustomTags: { customTags = $0 }
+                        )
+                        .frame(maxHeight: .infinity)
+                        .layoutPriority(1)
                     }
-                }
-        } else {
-            ZStack {
-                VStack(spacing: 0) {
-                    DigitHeaderView(
-                        name: headerName,
-                        topPadding: 16,
-                        bottomPadding: 8,
-                        onPlusTap: { showNewHabitSheet = true },
-                        isEditMode: isEditMode,
-                        onTrashTap: { print("[DEBUG] Trash tapped") }
-                    )
-                    // Tab bar separator
-                    Divider()
-                        .background(Color.digitDivider)
-                    ZStack(alignment: .bottom) {
-                        TabView(selection: $selectedTab) {
-                            NavigationView {
-                                HomeView(onHabitCompleted: { confettiTrigger += 1 }, viewModel: homeViewModel, isEditMode: $isEditMode)
-                                    .navigationBarHidden(true)
-                            }
-                            .tabItem {
-                                Label("Home", systemImage: "house.fill")
-                            }
-                            .tag(0)
-                            
-                            NavigationView {
-                                StatsView(
-                                    habitService: HabitService(),
-                                    progressService: HabitProgressService(),
-                                    userId: {
-                                        if let idString = authViewModel.currentUserProfile?.id, let uuid = UUID(uuidString: idString) {
-                                            return uuid
-                                        } else {
-                                            return UUID()
-                                        }
-                                    }()
-                                )
-                                .navigationBarHidden(true)
-                            }
-                            .tabItem {
-                                Label("Stats", systemImage: "chart.bar.fill")
-                            }
-                            .tag(1)
-                            
-                            NavigationView {
-                                AwardsView()
-                            }
-                            .tabItem {
-                                Label("Streaks", systemImage: "flame.fill")
-                            }
-                            .tag(2)
-                            
-                            NavigationView {
-                                SettingsView()
-                                    .environmentObject(accountViewModel)
-                                    .navigationBarHidden(true)
-                            }
-                            .tabItem {
-                                Label("Settings", systemImage: "person.fill")
-                            }
-                            .tag(3)
-                        }
-                        .accentColor(Color.digitBrand)
+                    .tabItem {
+                        Image(systemName: "house.fill")
+                        Text("Home")
                     }
+                    .tag(0)
+                    // Stats tab
+                    ProgressView()
+                        .tabItem {
+                            Image(systemName: "chart.pie")
+                            Text("Progress")
+                        }
+                        .tag(1)
+                    // Streaks tab
+                    AwardsView()
+                        .tabItem {
+                            Image(systemName: "star")
+                            Text("Streaks")
+                        }
+                        .tag(2)
+                    // Settings tab
+                    SettingsView()
+                        .environmentObject(AccountViewModel(
+                            profileService: SupabaseProfileService(),
+                            authService: AuthService()
+                        ))
+                        .tabItem {
+                            Image(systemName: "gearshape")
+                            Text("Settings")
+                        }
+                        .tag(3)
                 }
-                .sheet(isPresented: $showNewHabitSheet) {
-                    NewHabitView(onDismiss: { showNewHabitSheet = false }, userId: authViewModel.currentUserProfile?.id ?? "", homeViewModel: homeViewModel)
-                }
+                .accentColor(Color.digitBrand)
             }
-            .confettiCannon(trigger: $confettiTrigger, num: 30, colors: [.red, .blue, .green, .yellow, .purple])
         }
+        .sheet(isPresented: $showingNewHabitSheet) {
+            NewHabitView(
+                onDismiss: { showingNewHabitSheet = false },
+                userId: homeViewModel.userId.uuidString,
+                homeViewModel: homeViewModel,
+                customTags: customTags,
+                setCustomTags: { customTags = $0 }
+            )
+        }
+    }
+}
+
+private struct CalendarStrip: View {
+    @Binding var selectedDate: Date
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(-3...3, id: \ .self) { offset in
+                let date = Calendar.current.date(byAdding: .day, value: offset, to: selectedDate) ?? selectedDate
+                let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
+                let isToday = Calendar.current.isDateInToday(date)
+                let textColor: Color = isToday ? Color.digitBrand : (isSelected ? Color.digitBrand : Color.digitSecondaryText)
+                VStack(spacing: 2) {
+                    Text(dayNumber(from: date))
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(textColor)
+                    Text(dayShortName(from: date))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(textColor)
+                    // Placeholder for completion/total
+                    Text("0/0")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(textColor)
+                    Rectangle()
+                        .fill(isToday ? Color.digitBrand : (isSelected ? Color.digitBrand : Color.clear))
+                        .frame(height: 3)
+                        .cornerRadius(1.5)
+                        .padding(.top, 14)
+                }
+                .frame(maxWidth: .infinity, minHeight: 60, maxHeight: 60)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut) {
+                        selectedDate = date
+                    }
+                }
+                .accessibilityElement()
+                .accessibilityLabel("\(dayShortName(from: date)), 0 completed out of 0")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 0)
+        // Thin green line under calendar
+        Rectangle()
+            .fill(Color.digitBrand)
+            .frame(height: 1)
+            .padding(.horizontal, 0)
+    }
+    private func dayNumber(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter.string(from: date)
+    }
+    private func dayShortName(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EE"
+        return formatter.string(from: date).uppercased()
     }
 }
 
 #if DEBUG
 #Preview {
-    let mockAuthViewModel = AuthViewModel()
-    MainTabView(isLoading: false)
-        .environmentObject(AuthCoordinator(authViewModel: mockAuthViewModel))
-        .environmentObject(mockAuthViewModel)
+    MainTabView()
 }
 #endif 

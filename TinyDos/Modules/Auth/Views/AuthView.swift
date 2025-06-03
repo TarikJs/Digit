@@ -5,69 +5,219 @@ struct AuthView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var isLogin = true
     @EnvironmentObject private var coordinator: AuthCoordinator
+    @State private var rememberMe = false
+    @FocusState private var focusedField: Field?
+    @State private var showPassword: Bool = false
+    @State private var showErrorAlert: Bool = false
+    
+    enum Field: Hashable {
+        case email, password
+    }
     
     var body: some View {
         ZStack {
-            Color.digitBackground
-                .ignoresSafeArea()
+            Color.digitGrayLight.ignoresSafeArea()
             
             if coordinator.currentState == .waitingForVerification {
                 WaitingForEmailVerificationView(onCancel: {
-                    Task {
-                        await coordinator.handleVerificationCancel()
-                    }
+                    Task { await coordinator.handleVerificationCancel() }
                 }, onVerified: {
                     coordinator.proceedToMain()
                 })
             } else {
-                VStack(spacing: 32) {
+                VStack {
+                    Spacer(minLength: 0)
+                    // Add extra top padding to move content away from the notch
+                    VStack(spacing: 0) {
+                        // Onboarding Carousel (image height 220pt)
+                        AuthOnboardingCarousel(imageHeight: 220)
+                            .padding(.bottom, 16)
+                        // Error message (animated, triggers alert)
+                        if let error = authViewModel.errorMessage, !error.isEmpty {
+                            Color.clear.frame(height: 0) // For animation placeholder
+                                .onAppear {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showErrorAlert = true
+                                    }
+                                }
+                        }
+                        // Email & Password Fields
+                        VStack(spacing: 18) {
+                            HStack {
+                                Image(systemName: "envelope")
+                                    .foregroundColor(.digitBrand)
+                                TextField("Email address", text: $authViewModel.email)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .font(.system(size: 17, weight: .regular, design: .rounded))
+                                    .accessibilityLabel("Email address")
+                                    .focused($focusedField, equals: .email)
+                            }
+                            .padding(.horizontal, 16)
+                            .frame(height: 52)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(focusedField == .email ? Color.digitAccentRed : Color.clear, lineWidth: 1.5)
+                            )
+                            HStack {
+                                Image(systemName: "lock")
+                                    .foregroundColor(.digitBrand)
+                                Group {
+                                    if showPassword {
+                                        TextField("Password", text: $authViewModel.password)
+                                            .font(.system(size: 17, weight: .regular, design: .rounded))
+                                            .accessibilityLabel("Password")
+                                            .focused($focusedField, equals: .password)
+                                    } else {
+                                        SecureField("Password", text: $authViewModel.password)
+                                            .font(.system(size: 17, weight: .regular, design: .rounded))
+                                            .accessibilityLabel("Password")
+                                            .focused($focusedField, equals: .password)
+                                    }
+                                }
+                                Button(action: { showPassword.toggle() }) {
+                                    Image(systemName: showPassword ? "eye.slash" : "eye")
+                                        .foregroundColor(.gray)
+                                        .accessibilityLabel(showPassword ? "Hide password" : "Show password")
+                                }
+                                .padding(.leading, 4)
+                            }
+                            .padding(.horizontal, 16)
+                            .frame(height: 52)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(focusedField == .password ? Color.digitAccentRed : Color.clear, lineWidth: 1.5)
+                            )
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        // Remember Me & Forgot Password
+                        HStack {
+                            Button(action: { rememberMe.toggle() }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: rememberMe ? "checkmark.square.fill" : "square")
+                                        .foregroundColor(rememberMe ? .digitAccentRed : .gray)
+                                    Text("Remember me")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remember me")
                     Spacer()
-                    // Onboarding Carousel
-                    AuthOnboardingCarousel()
-                    
-                    if let error = authViewModel.errorMessage {
-                        Text(error)
-                            .font(.plusJakartaSans(size: 14))
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                            .transition(.opacity)
-                    }
-                    
-                    AuthProvidersView(
-                        email: $authViewModel.email,
-                        isEmailValid: authViewModel.isEmailValid,
-                        isLogin: $isLogin,
-                        isLoading: authViewModel.isLoading,
-                        onEmailContinue: { authViewModel.continueWithEmail(isLogin: isLogin) },
-                        onApple: { authViewModel.continueWithApple() },
-                        onGoogle: { authViewModel.continueWithGoogle() },
-                        onFacebook: { authViewModel.continueWithFacebook() },
-                        password: $authViewModel.password
-                    )
-                    
-                    VStack(spacing: 8) {
-                        HStack(spacing: 4) {
-                            Text(isLogin ? "New to TinyDos?" : "Already have an account?")
-                                .font(.plusJakartaSans(size: 14))
-                                .foregroundStyle(Color(hex: "6B7280"))
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            Button(action: { /* TODO: Forgot password action */ }) {
+                                Text("Forgot Password ?")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(.digitAccentRed)
+                            }
+                            .accessibilityLabel("Forgot Password")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        // Log In Button
+                        Button(action: { authViewModel.continueWithEmail(isLogin: isLogin) }) {
+                            Text(isLogin ? "Log In" : "Sign Up")
+                                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                                .background(Color.digitAccentRed)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 22)
+                        .padding(.bottom, 8)
+                        .disabled(!authViewModel.isEmailValid || authViewModel.password.isEmpty || authViewModel.isLoading)
+                        // Divider with 'or login with'
+                        HStack {
+                            Rectangle()
+                                .fill(Color(hex: "6B7280"))
+                                .frame(height: 1)
+                            Text("Or")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(Color(hex: "6B7280"))
+                                .padding(.horizontal, 10)
+                            Rectangle()
+                                .fill(Color(hex: "6B7280"))
+                                .frame(height: 1)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        // Social Buttons (circular, side by side)
+                        HStack(spacing: 20) {
+                            // Google Sign-In Button
+                            Button(action: { authViewModel.continueWithGoogle() }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 48, height: 48)
+                                        .shadow(color: Color.black.opacity(0.08), radius: 2, y: 1)
+                                    Image("Google")
+                                        .resizable()
+                                        .frame(width: 24, height: 24)
+                                }
+                            }
+                            .accessibilityLabel("Sign in with Google")
+                            // Apple Sign-In Button (icon only)
+                            Button(action: { authViewModel.continueWithApple() }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.black)
+                                        .frame(width: 48, height: 48)
+                                        .shadow(color: Color.black.opacity(0.08), radius: 2, y: 1)
+                                    Image(systemName: "applelogo")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(height: 24)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .accessibilityLabel("Sign in with Apple")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                        // Sign Up / Log In Toggle
+                        HStack(spacing: 6) {
+                            Text(isLogin ? "Don't have an account?" : "Already have an account?")
+                                .font(.system(size: 15))
+                                .foregroundColor(Color(hex: "6B7280"))
                             Button(action: {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                     isLogin.toggle()
                                 }
                             }) {
-                                Text(isLogin ? "Sign up" : "Log in")
-                                    .font(.plusJakartaSans(size: 14, weight: .medium))
-                                    .foregroundStyle(Color.digitBrand)
+                                Text(isLogin ? "Sign Up" : "Log In")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(.digitBrand)
                             }
                         }
-                        .animation(.easeInOut(duration: 0.2), value: isLogin)
+                        .padding(.bottom, 24)
                     }
-                    .frame(width: 320)
-                    .padding(.bottom, 24)
+                    .padding(.top, 48)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: 480)
+                    Spacer(minLength: 0)
                 }
-                
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.clear)
+                .safeAreaInset(edge: .bottom) { Spacer().frame(height: 24) }
+                .alert(isPresented: $showErrorAlert) {
+                    Alert(
+                        title: Text("Warning"),
+                        message: Text(authViewModel.errorMessage ?? "Unknown error"),
+                        dismissButton: .default(Text("OK")) {
+                            authViewModel.errorMessage = nil
+                }
+                    )
+                }
                 if authViewModel.isLoading {
                     Color.black.opacity(0.4)
                         .ignoresSafeArea()
@@ -165,8 +315,9 @@ struct AuthOnboardingCarousel: View {
         ("Wearable Tech 3", "Track Your Habits", "Stay on top of your goals with daily reminders and progress tracking."),
         ("Zero Tasks 3", "Celebrate Progress", "Earn awards and see your growth as you build better habits.")
     ]
-    init() {
-        // Debug print all available font families and names (removed)
+    let imageHeight: CGFloat
+    init(imageHeight: CGFloat) {
+        self.imageHeight = imageHeight
     }
     var body: some View {
         VStack(spacing: 12) {
@@ -176,7 +327,7 @@ struct AuthOnboardingCarousel: View {
                         Image(pages[idx].image)
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 220)
+                            .frame(height: imageHeight)
                             .padding(.bottom, 8)
                         Text(pages[idx].title)
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 24))
@@ -221,3 +372,4 @@ struct AuthOnboardingCarousel: View {
         .environmentObject(mockAuthViewModel)
 }
 #endif 
+
